@@ -1,88 +1,33 @@
-BUGS
-
-broken shell if built using 'USE_TCL_STUBS=1 STATIC_BUILD=0'
-static shell exports Tclprinter_Init
-
-NOTES
-
-Windows XP - несколько документов (заданий), можно выполнять последовательно (start/end) в рамках одного контекста (printer open)
-Windows 7  - для каждого документа (задания), надо открывать новый контекст (printer open)
-
-Wndows XP - StartDoc не срабатывает после AbortDoc (или после сбойного StartDoc)
-Wndows 7 - StartDoc не срабатывает повторно (после Start/End)
-
-Windows XP - start/printempty/end не создает выходного документа
-Windows 7  - start/end - создает пустой выходной документ
-
-Windows 7 -  -raw write не печатает если не задать имя задания (-document)
-Windows 7 -  -raw -output надо задавать полным путем, иначе непонятно где открывает
-
-IDEAS
-
-printer -xps
-
-printer names ?-verbose?
-printer documents ?-verbose?
-printer document pause|resume|abort -document documentname
-
-gdicommand startpage -portrait|-landscape -margins {}
-
-gdicommand info scalex|scaley|cwidth|cheight|page|font|protocol|document|status
-
-gdicommand startpage -callback | -cb
-gdicommand endpage -callback | -cb
-? printer print -gdi -startpagecb -endpagecb | pagecallback
-
-gdicommand rect|frame|... -brush xxx -pen xxx
-gdicommand image -bitmap|-jpeg|... (using ExtEscape?)
-gdicommand metafile -file filespec
-? gdicommand line
-
-? gdicommand configure -margins rectspec -startpagecb  
-? gdicommand configure -align mode|-autopos mode|-font name
-? gdicommand configure  -portrait|-landscape
-? gdicommand cget ...
-
-? use AbortProc to control aborts
-
-? Comdlg32.lib is used only for PrintDlg, exclude using DIALOGS=0 define ?
-
-doc: manual
-doc: table print example using place
-
----
-
-Q: is enddoc needed after abortdoc?
-A: NO
-
-Q: is abortdoc or enddoc needed after startdoc failed?
-A: YES, abortdoc
-
-===
-
 MANUAL
 
 printer names
 
 printer print ? -gdi ?
-              ? -default | select  | -name printername?
-              ? -docname document ?
+              ? -default | -printdialog | -setupdialog | -name printername?
+              ? -document documentname ?
+              ? -output outputfilename ?
               ? -margins rectspec ?
               ? -font fontspec ?
               ? -wordwrap ?
+              text
+
+printer write ? -raw ?
+              ? -default | -printdialog | -setupdialog | -name printername?
+              ? -document documentname ?
+              ? -output outputfile ?
               data
 
 printer open  ? -gdi | -raw ?
-              ? -default | select  | -name printername?
+              ? -default | -printdialog | -setupdialog | -name printername?
               contextcommand
 
-gdicommand start ?-document documentname? ?-output filename?
-gdicommand abort
+gdicommand start     ?-document documentname? ?-output outputfilename?
 gdicommand end
 gdicommand close
+gdicommand abort
 gdicommand startpage
 gdicommand endpage
-gdicommand info      protocol | name | document | page | status | width | height
+gdicommand info      protocol | name | page | width | height | pwidth | pheigth | iwidth | iheight | cwidth | cheight
 gdicommand place     ? -rect rectspec ? ? -align alignspec ? ? -font fontspec ? ? -calcrect ? text
 gdicommand print     ? -margins rectspec ? ? -font fotnspec ? ? -wordwrap ? text
 gdicommand frame     ? -rect rectspec ?
@@ -91,49 +36,57 @@ gdicommand rectangle ? -rect rectspec ?
 gdicommand round     ? -rect rectspec ?
 gdicommand ellipse   ? -rect rectspec ?
 
-rawcommand start ?-document documentname? ?-output filename?
-rawcommand abort
+rawcommand start ?-document documentname? ?-output outputfilename?
 rawcommand end
 rawcommand close
+rawcommand abort
 rawcommand startpage
 rawcommand endpage
+rawcommand write data
 
 printer names        - enumerates the locally installed printers
 
 printer print        - creates a job and prints lines of text on the one or more pages.
-
+                       The command
+                           printer print -name $printer $text
+                       is a shortcat for
+                           set p [printer open -name $printer]
+                           $p start
+                           $p startpage
+                           while true {
+                               set text [string range $text [$p print $text] end]
+                               if {[string length $text]} {
+                                   $p endpage
+                                   $p startpage
+                               } else {
+                                   break
+                           }
+                           $p endpage
+                           $p end
+                           $p close
 printer open         - opens an interface to the printer, gdi or raw
-
     -default         - opens default printer
-
     -select          - executes printer selection dialog
-
     -name printername- the name of the specific output device being used, as shown by the Print Manager (for example, Epson FX-80)
 
 gdicommand start     -  starts a print job.
-
     -document documentname - the name of the document.
-
-    -output filename - the name of an output file. If not specified, the output will be sent to the printer device.
-
-gdicommand abort     - stops the current print job and erases everything drawn since the last call to the start.
+    -output outputfilename - the name of an output file. If not specified, the output will be sent to the printer device.
 
 gdicommand end       - ends a print job.
 
-gdicommand close     - ends page, print job and deletes gdicommand.
+gdicommand close     - deletes gdicommand.
+
+gdicommand abort     - stops the current print job and erases everything drawn since the last call to the start. Deletes gdicommand!
 
 gdicommand startpage - prepares the printer driver to accept data.
 
 gdicommand endpage   - notifies the device that the application has finished writing to a page. This function is typically used to direct the device driver to advance to a new page.
 
 gdicommand place     - draws formatted text in the specified rectangle and formats the text according to the specified method (expanding tabs, justifying characters, breaking lines, and so forth). If the function succeeds, the return value is the height of the text in device units. If vcenter or bottom align mode is specified, the return value is the offset from -rect top value to the bottom of the drawn text.
-
     -rect rectspec   - the rectangle (in device coordinates) in which the text is to be formatted.
-
-        rectspect    - {?left? ?top? ?right? ?bottom?} - rectangle (in device coordinates) in which the text is to be formatted.
-
+        rectspect    - {?left? ?top? ?right? ?bottom?} - rectangle (in device coordinates) by default {0 0 pagewidth pageheight}.
     -align alignspec - the method of formatting the text
-
         alignspec    - {?value1? ?value2? ...}  - can be one or more of the following values:
             top             Justifies the text to the top of the rectangle.
             left            Aligns text to the left.
@@ -149,101 +102,231 @@ gdicommand place     - draws formatted text in the specified rectangle and forma
             pathellipsis    For displayed text, replaces characters in the middle of the string with ellipses so that the result fits in the specified rectangle. 
             wordellipsis    Truncates any word that does not fit in the rectangle and adds ellipses.
             endellipsis     For displayed text, if the end of a string does not fit in the rectangle, it is truncated and ellipses are added. If a word that is not at the end of the string goes beyond the limits of the rectangle, it is truncated without ellipses.
-
             top, bottom and vcenter are usable only with the singleline value.
-
     -font fontspec   - specified a logical font with the folollowing characteristics. 
-
         fontspec     - {?name? ?height? ?width? ?weight? ?style? ?charset? ?quality? ?pitch? ?family?}
-
-       	name - string that specifies the typeface name of the font.
-        height - the height, in logical units, of the font's character cell or character.
-        width - the average width, in logical units, of characters in the requested font. If this value is zero, the font mapper chooses a closest match value. 
-        weight - the weight of the font in the range 0 through 1000. For example, 400 is normal and 700 is bold. If this value is zero, a default weight is used.
-            The following values are defined for convenience:
-            thin           100
-            extralight     200
-            ultralight     200
-            light          300
-            normal         400
-            regular        400
-            medium         500
-            semibold       600
-            demibold       600
-            bold           700
-            extrabold      800
-            ultrabold      800
-            heavy          900
-            black          900
-        style - ?italic? ?underline? ?strikeout?
-        charset - the character set, one of the:
-            ansi
-            baltic
-            chinesebig5
-            default
-            easteurope
-            gb2312
-            greek
-            hangul
-            mac
-            oem
-            russian
-            shiftjis
-            symbol
-            turkish
-            vietnamese
-            johab
-            arabic
-            hebrew
-            thai
-            oem
-            default
-        quality - the output quality:
-            antialiased     font is antialiased, or smoothed, if the font supports it and the size of the font is not too small or too large.
-            default         appearance of the font does not matter.
-            draft           appearance of the font is less important than when the proof value is used. 
-            nonantialiased  font is never antialiased, that is, font smoothing is not done.
-            proof           character quality of the font is more important than exact matching of the logical-font attributes. 
-        pitch
-            default
-            fixed
-            variable
-        family
-            decorative
-            dontcare
-            modern
-            roman
-            script
-            swiss
-
+            name - string that specifies the typeface name of the font.
+            height - the height, in logical units, of the font's character cell or character.
+            width - the average width, in logical units, of characters in the requested font. If this value is zero, the font mapper chooses a closest match value. 
+            weight - the weight of the font in the range 0 through 1000. For example, 400 is normal and 700 is bold. If this value is zero, a default weight is used.
+                The following values are defined for convenience:
+                thin           100
+                extralight     200
+                ultralight     200
+                light          300
+                normal         400
+                regular        400
+                medium         500
+                semibold       600
+                demibold       600
+                bold           700
+                extrabold      800
+                ultrabold      800
+                heavy          900
+                black          900
+            style - ?italic? ?underline? ?strikeout?
+            charset - the character set, one of the:
+                ansi
+                baltic
+                chinesebig5
+                default
+                easteurope
+                gb2312
+                greek
+                hangul
+                mac
+                oem
+                russian
+                shiftjis
+                symbol
+                turkish
+                vietnamese
+                johab
+                arabic
+                hebrew
+                thai
+                oem
+                default
+            quality - the output quality:
+                antialiased     font is antialiased, or smoothed, if the font supports it and the size of the font is not too small or too large.
+                default         appearance of the font does not matter.
+                draft           appearance of the font is less important than when the proof value is used. 
+                nonantialiased  font is never antialiased, that is, font smoothing is not done.
+                proof           character quality of the font is more important than exact matching of the logical-font attributes. 
+            pitch
+                default
+                fixed
+                variable
+            family
+                decorative
+                dontcare
+                modern
+                roman
+                script
+                swiss
     -calcrect        - returns the bounds of the formatted text but does not draw the text.
 
 gdicommand print     - prints lines of text. Returns number of characters printed on the current page.
-
-    -margins         - left, top, right and bottom margins/
-
-    -font            - see place command
-
+    -margins         - left, top, right and bottom margins, by default {0 ,0 ,0 ,0}
+    -font            - see above
     -wordwrap        - breaks words, lines are automatically broken between words if a word would extend past the right margin.
 
 gdicommand frame     - draws a border around the specified rectangle.
+    -rect            - see above
+    -brush brushspec
+        brushspec
+        black     Black brush.
+        dkgray    Dark gray brush.
+        dc        Solid color brush. The default color is white.
+        gray      Gray brush.
+        hollow    Hollow brush (equivalent to NULL_BRUSH).
+        ltgray    Light gray brush.
+        null      Null brush (equivalent to HOLLOW_BRUSH).
+        white     White brush.
 
 gdicommand fill      - fills a rectangle. This function includes the left and top borders, but excludes the right and bottom borders of the rectangle.
+    -rect            - see above
+    -brush brushspec - see above
 
 gdicommand rectangle - draws a rectangle. The rectangle is outlined and filled.
+    -rect            - see above
+    -brush brushspec - see above
 
 gdicommand round     - draws a rectangle with rounded corners. The rectangle is outlined and filled.
+    -rect            - see above
+    -brush brushspec - see above
 
 gdicommand ellipse   - draws an ellipse. The center of the ellipse is the center of the specified bounding rectangle. The ellipse is outlined and filled.
+    -rect            - see above
+    -brush brushspec - see above
+
+rawcommand info      - protocol | name | page 
+
+rawcommand status    - fake
+
+rawcommand document  - job control
+    select ?selectspec? | id ?id? | status ?id? | cancel ?id? | delete ?id? | pause ?id? | resume ?id? | restart ?id? | retain ?id? | release ?id?
+        select  Search for printer jobs and return details
+            selectspec =  ?{?id? ?printer? ?machine? ?user? ?document?}? ?-printer match? ?-machine match? ?-user match? ?-document match?}?
+        id      Document id, if option ?id? not
+        status
+            blockeddevq    	The driver cannot print the job.
+            deleted        	Job has been deleted.
+            deleting       	Job is being deleted.
+            error          	An error is associated with the job.
+            offline        	Printer is offline.
+            paperout       	Printer is out of paper.
+            paused         	Job is paused.
+            printed        	Job has printed.
+            printing       	Job is printing.
+            restart        	Job has been restarted.
+            spooling       	Job is spooling.
+            userintervention	Printer has an error that requires the user to do something.
+            complete       	Windows XP and later: Job is sent to the printer, but the job may not be printed yet.
+            retained       	Windows Vista and later: Job has been retained in the print queue and cannot be deleted.
+        pause   Pause the print job.
+        resume  Resume a paused print job.
+        cancel  Delete the print job on a Windows 95/98/ME/NT machine.
+        delete  Delete the print job on a Windows 2000 and above machine.
+        restart Restart the print job. A job can only be restarted if it was printing.
+        retain  Windows Vista and later: Keep the job in the queue after it prints.
+        release Windows Vista and later: Release the print job.
+
+rawcommand start     - starts a print job.
+        -document documentname - The name of the document.
+        -output outputfilename - The name of an output file. If not specified, the output will be sent to the printer device.
+                                 Note: outputfilename must be specified by the full pathname otherwise it will be created in the unknown directory.
+
+rawcommand end       - ends a print job.
+
+rawcommand close     - deletes rawcommand.
+
+rawcommand abort     - aborts current job and deletes rawcommand.
+
+rawcommand startpage - startpage/endpage can be skipped for the rawcommand
+
+rawcommand endpage   
+
+rawcommand status    - gets printer status,
+    can returns (but does not):
+        busy                 The printer is busy.
+        dooropen             The printer door is open.
+        error                Not used.
+        initializing         The printer is initializing.
+        ioactive             The printer is in an active input/output state
+        manualfeed           The printer is in a manual feed state.
+        notoner              The printer is out of toner.
+        notavailable         The printer is not available for printing.
+        offline              The printer is offline.
+        outofmemory          The printer has run out of memory.
+        outputbinfull        The printer's output bin is full.
+        pagepunt             The printer cannot print the current page.
+        paperjam             Paper is jammed in the printer
+        paperout             The printer is out of paper.
+        paperproblem         The printer has a paper problem.
+        paused               The printer is paused.
+        pendingdeletion      The printer is pending deletion as a result of a call to the DeletePrinter function.
+        powersave            The printer is in power save mode.
+        printing             The printer is printing.
+        processing           The printer is processing a command from the SetPrinter function.
+        serverunknown        The printer status is unknown.
+        tonerlow             The printer is low on toner.
+        userintervention     The printer has an error that requires the user to do something.
+        waiting              The printer is waiting.
+        warmingup            The printer is warming up.
+    for some printers:
+        workoffline          The printer attribute offline is set.
+
+==============================================================================================================================
+
+BUGS
+
+shell is broken if built using 'USE_TCL_STUBS=1 STATIC_BUILD=0'
+static shell exports Tclprinter_Init
+
+NOTES
+
+Windows XP - несколько документов (заданий), можно выполнять последовательно (start/end) в рамках одного контекста (printer open)
+Windows 7  - для каждого документа (задания), надо открывать новый контекст (printer open)
+
+Wndows XP - StartDoc не срабатывает после AbortDoc (или после сбойного StartDoc)
+Wndows 7 - StartDoc не срабатывает повторно (после Start/End)
+
+Windows XP - start/printempty/end не создает выходного документа
+Windows 7  - start/end - создает пустой выходной документ
+
+Windows XP,7 -  -raw write не печатает если не задать имя задания (-document)
+Windows XP,7 -  -raw -output надо задавать полным путем, иначе непонятно где открывает
+
+IDEAS
+
+printer -xps
+
+printer names ?-verbose?
+printer names ?match? | select ?query?
+
+gdicommand startpage -portrait|-landscape -margins {...}
+
+gdicommand info scalex|scaley|font|document
+gdicommand status
+
+gdicommand startpage -callback | -cb
+gdicommand endpage -callback | -cb
+? printer print -gdi -startpagecb -endpagecb | pagecallback
+
+gdicommand image -bitmap|-jpeg|... (using ExtEscape?)
+gdicommand metafile -file filespec
+? gdicommand line
+
+? gdicommand configure -margins rectspec -startpagecb  
+? gdicommand configure -align mode|-autopos mode|-font name
+? gdicommand configure  -portrait|-landscape
+? gdicommand cget ...
+
+rawcommand info document
+
+doc: table print example (using place)
+     place/rect/ellipse example
+     job control example for raw and gdi jobs
 
 ---
-
-BLACK_BRUSH     Black brush.
-DKGRAY_BRUSH    Dark gray brush.
-DC_BRUSH        Solid color brush. The default color is white. The color can be changed by using the SetDCBrushColor function. For more information, see the Remarks section.
-GRAY_BRUSH      Gray brush.
-HOLLOW_BRUSH    Hollow brush (equivalent to NULL_BRUSH).
-LTGRAY_BRUSH    Light gray brush.
-NULL_BRUSH      Null brush (equivalent to HOLLOW_BRUSH).
-WHITE_BRUSH     White brush.
-BLACK_PEN       Black pen.

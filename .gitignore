@@ -50,3 +50,9 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+vc71/devenv.bat
+
+vc90/debug.bat
+
+vc90/debug.tcl

@@ -42,7 +42,7 @@
 				Name="VCCLCompilerTool"
 				Optimization="0"
 				AdditionalIncludeDirectories="c:\atcl\include"
-				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;STATIC_BUILD;TCL_LOCAL_APPINIT=Tclprinter_AppInit"
+				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE;_CRT_SECURE_NO_WARNINGS;STATIC_BUILD;DIALOGS;TCL_LOCAL_APPINIT=Tclprinter_AppInit"
 				MinimalRebuild="true"
 				BasicRuntimeChecks="3"
 				RuntimeLibrary="3"

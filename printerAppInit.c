@@ -9,9 +9,6 @@ EXTERN int Tclprinter_Init _ANSI_ARGS_ ((Tcl_Interp *));
 #include <windows.h>
 #undef WIN32_LEAN_AND_MEAN
 
-#undef TCL_STORAGE_CLASS
-#define TCL_STORAGE_CLASS DLLEXPORT
-
 int Tclprinter_AppInit(Tcl_Interp *interp)
 {
 #ifdef USE_TCL_STUBS
@@ -21,7 +18,7 @@ int Tclprinter_AppInit(Tcl_Interp *interp)
 #endif
 
     if (Tcl_Init(interp) == TCL_ERROR) {
-        goto error;
+        return TCL_ERROR;
     }
 
     if (Tclprinter_Init(interp) == TCL_ERROR) {
@@ -31,7 +28,4 @@ int Tclprinter_AppInit(Tcl_Interp *interp)
     Tcl_StaticPackage(interp, "tclprinter", Tclprinter_Init, NULL);
     Tcl_SetVar(interp, "tcl_rcFileName", "~/tclprintershrc.tcl", TCL_GLOBAL_ONLY);
     return TCL_OK;
-
-error:
-    return TCL_ERROR;
 }

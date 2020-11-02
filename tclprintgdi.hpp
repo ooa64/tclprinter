@@ -25,8 +25,11 @@ public:
 
     virtual void Close();
 
-    virtual int Select(BOOL usedefault);
+#ifdef DIALOGS
+    virtual int Select(BOOL setupdialog);
+#endif
     virtual int Open(Tcl_Obj *printer);
+    virtual int OpenDefault();
     virtual int Configure(LOGFONT *fc);
     virtual int StartDoc(Tcl_Obj *document, Tcl_Obj *output);
     virtual int AbortDoc();
@@ -36,7 +39,7 @@ public:
 
     int Place(RECT *rect, BOOL calc, UINT align, Tcl_Obj *text);
     int Print(RECT *rect, BOOL wrap, Tcl_Obj *text);
-    int PrintDoc(Tcl_Obj *documentobj, Tcl_Obj *outputobj, RECT *rect, BOOL wrap, Tcl_Obj *text);
+    int PrintDoc(Tcl_Obj *document, Tcl_Obj *output, RECT *rect, BOOL wrap, Tcl_Obj *text);
 
     HDC GetDC() {
         return printerdc;
@@ -55,6 +58,7 @@ protected:
     int ParsePrintParams(int objc, Tcl_Obj *CONST objv[], int *obji, RECT *rect, LOGFONT *font, BOOL *wrap);
     int ParseFontArg(Tcl_Obj *obj, LOGFONT *lf);
     int ParseAlignArg(Tcl_Obj *obj, UINT *format);
+    int ParseBrushArg(Tcl_Obj *obj, int *brush);
     int ParseRectArg(Tcl_Obj *obj, RECT *rect);
 
 private:

@@ -9,10 +9,9 @@ BOOL TclPrintCmd::PageStarted() {
 }
 
 void TclPrintCmd::Close() {
-DEBUGLOG("TclPrintCmd::Close");
+    SetError(0);
     Tcl_DStringFree(&printername);
     Tcl_DStringInit(&printername);
-    SetError(0);
 }
 
 int TclPrintCmd::StartDoc(Tcl_Obj *document, Tcl_Obj *output) {
@@ -57,7 +56,7 @@ int TclPrintCmd::ParseStartParams(int objc, Tcl_Obj *CONST objv[], int *obji, Tc
             *document = objv[*obji];
             (*obji)++;
         } else {
-            Tcl_AppendResult(tclInterp, "missing option value for -document", NULL);
+            Tcl_AppendResult(tclInterp, "missing option value for ", Tcl_GetString(objv[*obji-1]), NULL);
             return TCL_ERROR;
         }
     }
@@ -67,7 +66,7 @@ int TclPrintCmd::ParseStartParams(int objc, Tcl_Obj *CONST objv[], int *obji, Tc
             *output = objv[*obji];
             (*obji)++;
         } else {
-            Tcl_AppendResult(tclInterp, "missing option value for -output", NULL);
+            Tcl_AppendResult(tclInterp, "missing option value for ", Tcl_GetString(objv[*obji-1]), NULL);
             return TCL_ERROR;
         }
     }

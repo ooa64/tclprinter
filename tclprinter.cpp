@@ -25,6 +25,19 @@ void ExternalToUtf(CONST TCHAR *external, Tcl_DString *utf) {
 #endif
 }
 
+Tcl_Obj *NewObjFromExternal(CONST TCHAR *external) {
+    if (external) {
+        Tcl_Obj *obj;
+        Tcl_DString ds;
+        Tcl_DStringInit(&ds);
+        ExternalToUtf(external, &ds);
+        obj = Tcl_NewStringObj(Tcl_DStringValue(&ds), -1);
+        Tcl_DStringFree(&ds);
+        return obj;
+    } else
+        return NULL;
+}
+
 int AppendSystemError (Tcl_Interp *interp, char *prefix, DWORD error) {
     int length;
     char *msg;
@@ -32,21 +45,20 @@ int AppendSystemError (Tcl_Interp *interp, char *prefix, DWORD error) {
     WCHAR *wMsgPtr, **wMsgPtrPtr = &wMsgPtr;
     Tcl_DString ds;
 
+    if (!error)
+        return TCL_ERROR;
+
     length = FormatMessageW(FORMAT_MESSAGE_FROM_SYSTEM
             | FORMAT_MESSAGE_ALLOCATE_BUFFER, NULL, error,
             MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (WCHAR *) wMsgPtrPtr,
             0, NULL);
     if (length == 0) {
         char *msgPtr;
-
-        length = FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM
-                | FORMAT_MESSAGE_ALLOCATE_BUFFER, NULL, error,
-                MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (char *) &msgPtr,
-                0, NULL);
+        length = FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_ALLOCATE_BUFFER, NULL, error,
+                MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (char *) &msgPtr, 0, NULL);
         if (length > 0) {
             wMsgPtr = (WCHAR *) LocalAlloc(LPTR, (length + 1) * sizeof(WCHAR));
-            MultiByteToWideChar(CP_ACP, 0, msgPtr, length + 1, wMsgPtr,
-                    length + 1);
+            MultiByteToWideChar(CP_ACP, 0, msgPtr, length + 1, wMsgPtr, length + 1);
             LocalFree(msgPtr);
         }
     }
@@ -67,11 +79,6 @@ int AppendSystemError (Tcl_Interp *interp, char *prefix, DWORD error) {
 
         msg = Tcl_DStringValue(&ds);
         length = Tcl_DStringLength(&ds);
-
-        /*
-         * Trim the trailing CR/LF from the system message.
-         */
-
         if (msg[length-1] == '\n') {
             msg[--length] = 0;
         }
@@ -90,23 +97,9 @@ int AppendSystemError (Tcl_Interp *interp, char *prefix, DWORD error) {
     return TCL_ERROR;
 }
 
-/*
-printer info default | names ?-verbose?
-printer print ? -gdi | -raw ?
-              ? -default | select  | -name printername?
-              ? -docname document ?
-              ? -wordwrap ?
-              ? -margins {?left? ?top? ?right? ?bottom?} ?
-              ? -font {name ?height? ?width? ?weight? ?style? ?charset? ?quality? ?pitch? ?family?} ?
-              data
-printer open  ? -gdi | -raw | xps ?
-              ? -default | select  | -name printername?
-              printcontextcommand
-*/
-
 int TclPrinterCmd::Command (int objc, struct Tcl_Obj *CONST objv[])
 {
-    static char *commands[] = {
+    static CONST char *commands[] = {
         "names",
         "print",
         "write",
@@ -126,7 +119,7 @@ int TclPrinterCmd::Command (int objc, struct Tcl_Obj *CONST objv[])
         return TCL_ERROR;
     }
 
-    if (Tcl_GetIndexFromObj(tclInterp, objv[1], (CONST char **)commands, "command", 0, &index) != TCL_OK) {
+    if (Tcl_GetIndexFromObj(tclInterp, objv[1], commands, "command", 0, &index) != TCL_OK) {
         return TCL_ERROR;
     }
 
@@ -136,7 +129,7 @@ int TclPrinterCmd::Command (int objc, struct Tcl_Obj *CONST objv[])
         if (Names(Tcl_GetObjResult(tclInterp)) == TCL_OK)
             return TCL_OK;
         else
-            return AppendSystemError(tclInterp, "can't query names: ", lasterrorcode);
+            return AppendSystemError(tclInterp, "can't query names: ", GetError());
 
     case cmOpen:
     case cmPrint:
@@ -160,20 +153,20 @@ int TclPrinterCmd::Command (int objc, struct Tcl_Obj *CONST objv[])
                         default:
                             {
                                 printerinterface = ifGdi; break;
-                                //Tcl_AppendResult(tclInterp, "printer interface not specified", NULL);
-                                //return TCL_ERROR;
+//                              Tcl_AppendResult(tclInterp, "unknown printer interface", NULL);
+//                              return TCL_ERROR;
                             }
                     }
                     break;
                 case ifGdi:
                     if ((enum commands)index != cmPrint && (enum commands)index != cmOpen) {
-                        Tcl_AppendResult(tclInterp, "invalid printer interface specified", NULL);
+                        Tcl_AppendResult(tclInterp, "invalid printer protocol for command", NULL);
                         return TCL_ERROR;
                     }
                     break;
                 case ifRaw:
                     if ((enum commands)index != cmWrite && (enum commands)index != cmOpen) {
-                        Tcl_AppendResult(tclInterp, "invalid printer interface specified", NULL);
+                        Tcl_AppendResult(tclInterp, "invalid printer protocol for command", NULL);
                         return TCL_ERROR;
                     }
                     break;
@@ -185,10 +178,14 @@ int TclPrinterCmd::Command (int objc, struct Tcl_Obj *CONST objv[])
                 commandname = NewPrintNameObj();
             else if (obji == objc)
                 commandname = NewPrintNameObj();
-            else if (obji == objc-1)
+            else if (obji == objc-1 && strncmp(Tcl_GetString(objv[objc-1]), "-", 1) != 0)
                 commandname = objv[objc-1];
             else {
-                Tcl_WrongNumArgs(tclInterp, 2, objv, "?-gdi|-raw? ?-default|-select|-name printername? ?command?");
+#ifdef DIALOGS
+                Tcl_WrongNumArgs(tclInterp, 2, objv, "?-gdi|-raw? ?-default|-printdialog|-setupdialog|-name printername? ?command?");
+#else
+                Tcl_WrongNumArgs(tclInterp, 2, objv, "?-gdi|-raw? ?-default|-name printername? ?command?");
+#endif
                 return TCL_ERROR;
             }
 
@@ -201,9 +198,12 @@ int TclPrinterCmd::Command (int objc, struct Tcl_Obj *CONST objv[])
             int result = TCL_OK;
             switch (printerselection) {
                 case seUnknown:
-                case seDefault: result = command->Select(TRUE); break;
+                case seDefault: result = command->OpenDefault(); break;
                 case seNamed: result = command->Open(printername); break;
-                case seSelect: result = command->Select(FALSE); break;
+#ifdef DIALOGS
+                case sePrintdialog: result = command->Select(FALSE); break;
+                case seSetupdialog: result = command->Select(TRUE); break;
+#endif
                 default: result = TCL_ERROR;
             }
             if (result != TCL_OK) {
@@ -234,43 +234,41 @@ int TclPrinterCmd::Command (int objc, struct Tcl_Obj *CONST objv[])
                             result = ((TclPrintGdiCmd *)command)->ParsePrintParams(objc, objv, &obji, &rect, &font, &wrap);
 
                         if (result == TCL_OK)
-                            if (obji == objc-1)
-                                if ((result = ((TclPrintGdiCmd *)command)->Configure(&font)) == TCL_OK)
-                                    if ((result = ((TclPrintGdiCmd *)command)->PrintDoc(document, output, &rect, wrap, objv[obji])) == TCL_OK)
-                                        Tcl_SetObjResult(tclInterp, Tcl_NewIntObj(result));
+                            if (obji == objc-1) {
+                                result = ((TclPrintGdiCmd *)command)->Configure(&font);
+                                if (result == TCL_OK) {
+                                    int printed = ((TclPrintGdiCmd *)command)->PrintDoc(document, output, &rect, wrap, objv[obji]);
+                                    if (printed >= 0)
+                                        Tcl_SetObjResult(tclInterp, Tcl_NewIntObj(printed));
                                     else
-                                        AppendSystemError(tclInterp, "error printing text: ", GetError());
-                                else 
-                                    AppendSystemError(tclInterp, "error configuring device context: ", command->GetError());
-                            else {
-                                Tcl_WrongNumArgs(tclInterp, 2, objv, "?-gdi? ?-default|-select|-name printername? ?-document documentname? ?-output filename? ?-margins rectspec? ?-font fontspec? ?-wordwrap? text");
+                                        result = AppendSystemError(tclInterp, "error printing text: ", command->GetError());
+                                } else 
+                                    result = AppendSystemError(tclInterp, "error configuring device context: ", command->GetError());
+                            } else {
+#ifdef DIALOGS
+                                Tcl_WrongNumArgs(tclInterp, 2, objv, "?-gdi? ?-default|-printdialog|-setupdialog|-name printername? ?-document documentname? ?-output filename? ?-margins rectspec? ?-font fontspec? ?-wordwrap? text");
+#else
+                                Tcl_WrongNumArgs(tclInterp, 2, objv, "?-gdi? ?-default|-name printername? ?-document documentname? ?-output filename? ?-margins rectspec? ?-font fontspec? ?-wordwrap? text");
+#endif
                                 result = TCL_ERROR;
                             }
                     }
                     break;
                 case cmWrite:
                     {
-                        DWORD written;
                         if (result == TCL_OK)
-                            if (obji == objc-1)
-                                if ((result = ((TclPrintRawCmd *)command)->StartDoc(document, output)) == TCL_OK)
-                                    if ((written = ((TclPrintRawCmd *)command)->Write(objv[obji])) >= 0)
-                                        if ((result = ((TclPrintRawCmd *)command)->EndDoc()) == TCL_OK)
-                                            Tcl_SetObjResult(tclInterp, Tcl_NewLongObj(written));
-                                        else {
-                                            AppendSystemError(tclInterp, "error ending document: ", command->GetError());
-                                            ((TclPrintRawCmd *)command)->AbortDoc();
-                                        }
-                                    else {
-                                        AppendSystemError(tclInterp, "error printing text: ", command->GetError());
-                                        ((TclPrintRawCmd *)command)->AbortDoc();
-                                    }
-                                else {
-                                    AppendSystemError(tclInterp, "error starting document: ", command->GetError());
-                                    ((TclPrintRawCmd *)command)->AbortDoc();
-                                }
-                            else {
-                                Tcl_WrongNumArgs(tclInterp, 2, objv, "?-raw? ?-default|-select|-name printername? ?-document documentname? ?-output filename data");
+                            if (obji == objc-1) {
+                                int written = ((TclPrintRawCmd *)command)->WriteDoc(document, output, objv[obji]);
+                                if (written >= 0)
+                                    Tcl_SetObjResult(tclInterp, Tcl_NewIntObj(written));
+                                else
+                                    result =  AppendSystemError(tclInterp, "error writing text: ", command->GetError());
+                            } else {
+#ifdef DIALOGS
+                                Tcl_WrongNumArgs(tclInterp, 2, objv, "?-raw? ?-default|-printdialog|-setupdialog|-name printername? ?-document documentname? ?-output filename data");
+#else
+                                Tcl_WrongNumArgs(tclInterp, 2, objv, "?-raw? ?-default|-name printername? ?-document documentname? ?-output filename data");
+#endif
                                 result = TCL_ERROR;
                             }
                     }
@@ -289,36 +287,29 @@ int TclPrinterCmd::Names (Tcl_Obj *result) {
     DWORD buffersize = 0;
     DWORD printerscount = 0;
     if (!_(::EnumPrinters(PRINTER_ENUM_LOCAL, NULL, 2, NULL, 0, &buffersize, &printerscount))) {
-        SetError(::GetLastError());
-        if (lasterrorcode == ERROR_INSUFFICIENT_BUFFER)
-            lasterrorcode = 0;
+        if (SetError(::GetLastError()) == ERROR_INSUFFICIENT_BUFFER)
+            SetError(0);
         else
             return TCL_ERROR;
     }
-    if (buffersize != 0) {
+    if (buffersize > 0) {
         PRINTER_INFO_2 *pi = (PRINTER_INFO_2 *)ckalloc(buffersize);
         if (!_(::EnumPrinters(PRINTER_ENUM_LOCAL, NULL, 2, (LPBYTE)pi, buffersize, &buffersize, &printerscount))) {
             SetError(::GetLastError());
             ckfree((char *)pi);
             return TCL_ERROR;
+        } else {
+            for (DWORD i = 0; i < printerscount; i++)
+                Tcl_ListObjAppendElement(NULL, result, NewObjFromExternal(pi[i].pPrinterName));
+            ckfree((char *)pi);
+            return TCL_OK;
         }
-        for (DWORD i = 0; i < printerscount; i++) {
-            Tcl_DString ds;
-            Tcl_DStringInit(&ds);
-            ExternalToUtf(pi[i].pPrinterName, &ds);
-            Tcl_ListObjAppendElement(tclInterp, result, Tcl_NewStringObj(Tcl_DStringValue(&ds), -1));
-            Tcl_DStringFree(&ds);
-        }
-        ckfree((char *)pi);
+    } else // anybody here ?
         return TCL_OK;
-    } else
-        return TCL_ERROR;
 }
 
 int TclPrinterCmd::ParseOpenParams(int objc, Tcl_Obj *CONST objv[], int *obji, 
-                                   interfaces *printerinterface, 
-                                   selections *printerselection, 
-                                   Tcl_Obj **printername) {
+        interfaces *printerinterface, selections *printerselection, Tcl_Obj **printername) {
     if (*obji < objc) {
         if (strcmp(Tcl_GetString(objv[*obji]), "-gdi") == 0) {
             *printerinterface = ifGdi;
@@ -332,9 +323,14 @@ int TclPrinterCmd::ParseOpenParams(int objc, Tcl_Obj *CONST objv[], int *obji,
         if (strcmp(Tcl_GetString(objv[*obji]), "-default") == 0) {
             *printerselection = seDefault;
             (*obji)++;
-        } else if (strcmp(Tcl_GetString(objv[*obji]), "-select") == 0) {
-            *printerselection = seSelect;
+#ifdef DIALOGS
+        } else if (strcmp(Tcl_GetString(objv[*obji]), "-printdialog") == 0) {
+            *printerselection = sePrintdialog;
             (*obji)++;
+        } else if (strcmp(Tcl_GetString(objv[*obji]), "-setupdialog") == 0) {
+            *printerselection = seSetupdialog;
+            (*obji)++;
+#endif
         } else if (strcmp(Tcl_GetString(objv[*obji]), "-name") == 0) {
             *printerselection = seNamed;
             (*obji)++;
@@ -355,7 +351,6 @@ Tcl_Obj *TclPrinterCmd::NewPrintNameObj() {
     static int suffix = 0;
     char buffer[8 + TCL_INTEGER_SPACE];
     Tcl_CmdInfo info;
-
     do {
         sprintf(buffer, "printer%d", suffix);
         suffix++;

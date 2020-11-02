@@ -19,6 +19,7 @@ public:
     };
 
     virtual ~TclPrintCmd() {
+        Tcl_DStringFree(&printername);
     };
 
     virtual BOOL Opened() = 0;
@@ -27,8 +28,11 @@ public:
 
     virtual void Close();
 
-    virtual int Select(BOOL usedefault) = 0;
+#ifdef DIALOGS
+    virtual int Select(BOOL setupdialog) = 0;
+#endif
     virtual int Open(Tcl_Obj *printer) = 0;
+    virtual int OpenDefault() = 0;
     virtual int StartDoc(Tcl_Obj *document, Tcl_Obj *output);
     virtual int AbortDoc();
     virtual int EndDoc();
@@ -47,8 +51,8 @@ protected:
     DWORD lasterrorcode;
     Tcl_DString printername;
 
-    VOID SetError(DWORD errorcode) {
-        lasterrorcode = errorcode;
+    DWORD SetError(DWORD errorcode) {
+        return (lasterrorcode = errorcode);
     }
 
     int ParseStartParams(int objc, Tcl_Obj *CONST objv[], int *obji, Tcl_Obj **document, Tcl_Obj **output);

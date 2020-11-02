@@ -21,6 +21,8 @@
 #      affect this extension too.
 #      [advanced topic for deep core hackers]
 #
+#  add DIALOGS=1 to use PrintDlg for select/setup printer
+#
 
 LIBRARY = tclprinter
 VERSION = 10
@@ -45,6 +47,10 @@ STATIC_BUILD = 0
 
 !ifndef USE_TCL_STUBS
 USE_TCL_STUBS = 1
+!endif
+
+!ifndef DIALOGS
+DIALOGS = 0
 !endif
 
 !ifndef DEBUG
@@ -110,7 +116,12 @@ LIBS = $(LIBS) $(TCLSTUBLIB)
 LIBS = $(LIBS) $(TCLLIB)
 !endif
 
-LIBS = $(LIBS) advapi32.lib user32.lib comdlg32.lib gdi32.lib winspool.lib
+LIBS = $(LIBS) advapi32.lib user32.lib gdi32.lib winspool.lib
+
+!if $(DIALOGS) == 1
+LIBS = $(LIBS) comdlg32.lib 
+DEFINES = $(DEFINES) -DDIALOGS
+!endif
 
 TARGET = $(LIBRARY)$(VERSION)$(DBGX).$(EXT)
 TARGETLIB = $(LIBRARY)$(VERSION)$(DBGX).lib
