@@ -5,26 +5,26 @@ Tclprinter - Tcl interface to the Windows printing system.
 
 
 Example 1. List installed printers.
-
+```
 puts [printer names]
-
+```
 
 Example 2. Print to the matrix printer directly.
-
+```
 printer write -name "EPSON LX-300+ /II" [encoding convertto $text]
-
+```
 
 Example 3. Print to the laser printer via Windows GDI.
-
+```
 printer print -name "Canon LBP2900" $text
-
+```
 
 Tcl printer uses two windows printing interfaces: "raw" (Print Spooler API) and "gdi" (GDI Print API).
 To create a handle to the API use  'printer open -raw'  or 'printer open -gdi'
 
 
 Example 4. Draw a page using GDI API
-
+```
 # open gdi handle
 set h [printer open -gdi -name "Canon LBP2900"]
 
@@ -47,19 +47,19 @@ $h ellipse -rect {100 1100 2000 2000} -brush ltgray
 $h endpage
 $h end
 $h close
-
+```
 
 Example 5. Pause all printer jobs using Spooler API.
-
+```
 set h [printer open -raw -name "EPSON LX-300+ /II"]
 foreach id [$h document select id] {
     $h document pause $id
 }
 $h close
-
+```
 
 Example 6. Print and control the job using Spooler API.
-
+```
 set h [printer open -raw -name "EPSON LX-300+ /II"]
 $h start -document "Example 6"
 $h startpage
@@ -79,10 +79,10 @@ for {set i 0}  {true}  {incr i} {
     }
     after 1000
 }
-
+```
 
 Example 7. Print using GDI API and control the job using Spooler API.
-
+```
 set document "Example 5 - [clock clicks]"
 set printer [printer open -gdi -name "Canon LBP2900"]
 $printer start -document $document
@@ -113,7 +113,7 @@ for {set i 0} {true} {incr i} {
 
 $monitor close
 $printer close
-
+```
 
 Changes...
 
