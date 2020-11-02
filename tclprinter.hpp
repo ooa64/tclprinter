@@ -24,6 +24,9 @@ public:
 
 protected:
 
+    enum interfaces {ifUnknown, ifGdi, ifRaw, ifXps}; 
+    enum selections {seUnknown, seDefault, seNamed, seSelect};
+
     DWORD lasterrorcode;
 
     void SetError(DWORD errorcode) {
@@ -31,6 +34,8 @@ protected:
     }
 
     int Names(Tcl_Obj *result);
+    int ParseOpenParams(int objc, Tcl_Obj *CONST objv[], int *obji,
+        interfaces *printerinterface, selections *printerselection, Tcl_Obj **printername);
 
 private:
 
@@ -39,22 +44,8 @@ private:
     Tcl_Obj *NewPrintNameObj();
 };
 
-Tcl_Obj *NewObjFromExternalW (TCHAR *external);
-Tcl_Obj *NewObjFromExternalA (TCHAR *external);
-TCHAR *NewExternalFromObjW (Tcl_Obj *obj);
-TCHAR *NewExternalFromObjA (Tcl_Obj *obj);
-
-#ifdef UNICODE
-#define NewObjFromExternal NewObjFromExternalW
-#define NewExternalFromObj NewExternalFromObjW
-#else
-#define NewObjFromExternal NewObjFromExternalA
-#define NewExternalFromObj NewExternalFromObjA
-#endif
-
-TCHAR *NewStringFromExternal(void *external);
-
-BOOL UnicodeOS();
+void UtfToExternal(CONST CHAR *utf, Tcl_DString *external);
+void ExternalToUtf(CONST TCHAR *external, Tcl_DString *utf);
 
 int AppendSystemError (Tcl_Interp *interp, char *prefix, DWORD error);
 

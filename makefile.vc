@@ -25,7 +25,7 @@
 LIBRARY = tclprinter
 VERSION = 10
 
-LIBRARY_OBJs = tclprinter.obj tclprint.obj tclcmd.obj 
+LIBRARY_OBJs = tclprinter.obj tclprintgdi.obj tclprintraw.obj tclprint.obj tclcmd.obj 
 SHELL_OBJs = printerAppInit.obj tclAppInit.obj
 
 # Edit this to point to where you installed Tcl.

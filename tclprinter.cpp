@@ -2,92 +2,27 @@
 
 #include "tclprinter.hpp"
 #include "tclprint.hpp"
+#include "tclprintgdi.hpp"
+#include "tclprintraw.hpp"
 
 #ifndef VER_PLATFORM_WIN32_WINDOWS
 #define VER_PLATFORM_WIN32_WINDOWS 1
 #endif
-#ifndef VER_PLATFORM_WIN32_CE
-#define VER_PLATFORM_WIN32_CE 3
+
+void UtfToExternal(CONST char *utf, Tcl_DString *external) {
+#ifdef UNICODE
+    Tcl_WinUtfToTChar(utf, -1, external);
+#else
+    Tcl_UtfToExternalDString(NULL, utf, -1, external);
 #endif
-
-
-BOOL UnicodeOS() {
-    int platform = VER_PLATFORM_WIN32_NT;
-//  int platform = TclWinGetPlatformId();
-
-    return ((platform == VER_PLATFORM_WIN32_NT) || (platform == VER_PLATFORM_WIN32_CE));
 }
 
-Tcl_Obj *NewObjFromExternalW (TCHAR *external) {
-   Tcl_Obj *obj;
-   Tcl_DString ds;
-
-   Tcl_DStringInit(&ds);
-   Tcl_WinTCharToUtf(external, -1, &ds);
-   obj = Tcl_NewStringObj(Tcl_DStringValue(&ds), -1);
-   Tcl_DStringFree(&ds);
-
-   return obj;
-}
-
-Tcl_Obj *NewObjFromExternalA (TCHAR *external) {
-   Tcl_Obj *obj;
-   Tcl_DString ds;
-
-   Tcl_DStringInit(&ds);
-   Tcl_ExternalToUtfDString(NULL, (CONST char *)external, -1, &ds);
-   obj = Tcl_NewStringObj(Tcl_DStringValue(&ds), -1);
-   Tcl_DStringFree(&ds);
-
-   return obj;
-}
-
-TCHAR *NewExternalFromObjW (Tcl_Obj *obj) {
-    Tcl_DString ds;
-    TCHAR *external;
-    unsigned length;
-
-    Tcl_DStringInit(&ds);
-    Tcl_WinUtfToTChar(Tcl_GetString(obj), -1, &ds);
-    length = Tcl_DStringLength(&ds);
-    external = (TCHAR *)ckalloc(length + sizeof(TCHAR));
-    memset(external, 0, length + sizeof(TCHAR));
-    memcpy(external, Tcl_DStringValue(&ds), length);
-    Tcl_DStringFree(&ds);
-
-    return external;
-}
-
-TCHAR *NewExternalFromObjA (Tcl_Obj *obj) {
-    Tcl_DString ds;
-    TCHAR *external;
-    unsigned length;
-
-    Tcl_DStringInit(&ds);
-    Tcl_UtfToExternalDString(NULL, Tcl_GetString(obj), -1, &ds);
-    length = Tcl_DStringLength(&ds);
-    external = (TCHAR *)ckalloc(length + sizeof(TCHAR));
-    memset(external, 0, length + sizeof(TCHAR));
-    memcpy(external, Tcl_DStringValue(&ds), length);
-    Tcl_DStringFree(&ds);
-
-    return (TCHAR *)external;
-}
-
-TCHAR *NewStringFromExternal (void *external) {
-    TCHAR *result;
-    size_t bytelength;
-
-    if (UnicodeOS())
-        bytelength = wcslen((wchar_t *)external)*sizeof(wchar_t)+sizeof(wchar_t);
-    else
-        bytelength = strlen((char *)external)*sizeof(char)+sizeof(char);
-
-    result = (TCHAR *)ckalloc((unsigned)bytelength);
-    memset(result, 0, (unsigned)bytelength);
-    memcpy(result, external, (unsigned)bytelength);
-
-    return result;
+void ExternalToUtf(CONST TCHAR *external, Tcl_DString *utf) {
+#ifdef UNICODE
+    Tcl_WinTCharToUtf(external, -1, utf);
+#else
+    Tcl_ExternalToUtfDString(NULL, external, -1, utf);
+#endif
 }
 
 int AppendSystemError (Tcl_Interp *interp, char *prefix, DWORD error) {
@@ -157,7 +92,7 @@ int AppendSystemError (Tcl_Interp *interp, char *prefix, DWORD error) {
 
 /*
 printer info default | names ?-verbose?
-printer print ? -gdi | -raw | -xps ?
+printer print ? -gdi | -raw ?
               ? -default | select  | -name printername?
               ? -docname document ?
               ? -wordwrap ?
@@ -174,12 +109,14 @@ int TclPrinterCmd::Command (int objc, struct Tcl_Obj *CONST objv[])
     static char *commands[] = {
         "names",
         "print",
+        "write",
         "open",
         0L
     };
     enum commands {
         cmNames,
         cmPrint,
+        cmWrite,
         cmOpen
     };
     int index;
@@ -203,174 +140,143 @@ int TclPrinterCmd::Command (int objc, struct Tcl_Obj *CONST objv[])
 
     case cmOpen:
     case cmPrint:
+    case cmWrite:
         {
-            enum interfaces {ifUnknown, ifGdi, ifRaw, ifXps}; 
-            enum selections {seUnknown, seDefault, seNamed, seSelect};
             interfaces printerinterface = ifUnknown;
             selections printerselection = seUnknown;
-            TclPrintCmd *command;
+            Tcl_Obj *printername = NULL;
             Tcl_Obj *commandname;
-            TCHAR *document = NULL;
-            TCHAR *output = NULL;
-            int result = TCL_OK;
-            int printerindex;
+            TclPrintCmd *command;
             int obji = 2;
 
-            if (obji < objc) {
-                if (strcmp(Tcl_GetString(objv[obji]), "-gdi") == 0) {
-                    printerinterface = ifGdi;
-                    obji++;
-                } else // default
-                    printerinterface = ifGdi;
-            }
-            if (obji < objc) {
-                if (strcmp(Tcl_GetString(objv[obji]), "-default") == 0) {
-                    printerselection = seDefault;
-                    obji++;
-                } else if (strcmp(Tcl_GetString(objv[obji]), "-select") == 0) {
-                    printerselection = seSelect;
-                    obji++;
-                } else if (strcmp(Tcl_GetString(objv[obji]), "-name") == 0) {
-                    printerselection = seNamed;
-                    obji++;
-                    if (obji < objc) {
-                        printerindex = obji;
-                        obji++;
-                    } else {
-                        Tcl_AppendResult(tclInterp, "printer name required for -name", NULL);
+            if (ParseOpenParams(objc, objv, &obji, &printerinterface, &printerselection, &printername) != TCL_OK)
+                return TCL_ERROR;
+
+            switch (printerinterface) {
+                case ifUnknown:
+                    switch ((enum commands)index) {
+                        case cmPrint: printerinterface = ifGdi; break;
+                        case cmWrite: printerinterface = ifRaw; break;
+                        default:
+                            {
+                                printerinterface = ifGdi; break;
+                                //Tcl_AppendResult(tclInterp, "printer interface not specified", NULL);
+                                //return TCL_ERROR;
+                            }
+                    }
+                    break;
+                case ifGdi:
+                    if ((enum commands)index != cmPrint && (enum commands)index != cmOpen) {
+                        Tcl_AppendResult(tclInterp, "invalid printer interface specified", NULL);
                         return TCL_ERROR;
                     }
-                }
+                    break;
+                case ifRaw:
+                    if ((enum commands)index != cmWrite && (enum commands)index != cmOpen) {
+                        Tcl_AppendResult(tclInterp, "invalid printer interface specified", NULL);
+                        return TCL_ERROR;
+                    }
+                    break;
+                default:
+                    return TCL_ERROR;
             }
 
-            if ((enum commands)(index) == cmOpen) {
-                if (obji == objc)
-                    commandname = NewPrintNameObj();
-                else if (obji == objc-1)
-                    commandname = objv[objc-1];
-                else {
-                    Tcl_WrongNumArgs(tclInterp, 2, objv, "?-gdi? ?-default|-select|-name printername? ?command?");
-                    return TCL_ERROR;
-                }
-                command = new TclPrintCmd(tclInterp, Tcl_GetString(commandname));
-            } else { // cmPrint
-	            if (result == TCL_OK && obji < objc && strcmp(Tcl_GetString(objv[obji]), "-document") == 0) {
-                    obji++;
-                    if (obji < objc) {
-                        document = NewExternalFromObj(objv[obji]);
-                        obji++;
-                    } else {
-                        Tcl_AppendResult(tclInterp, "missing option value for -document", NULL);
-                        result = TCL_ERROR;
-                    }
-                }
-                if (result == TCL_OK && obji < objc && strcmp(Tcl_GetString(objv[obji]), "-output") == 0) {
-                    obji++;
-                    if (obji < objc) {
-                        output = NewExternalFromObj(objv[obji]);
-                        obji++;
-                    } else {
-                        Tcl_AppendResult(tclInterp, "missing option value for -output", NULL);
-                        result = TCL_ERROR;
-                    }
-                }
-                if (result == TCL_ERROR) {
-                    if (document) ckfree((char *)document);
-                    if (output) ckfree((char *)output);
-                    return TCL_ERROR;
-                }
-                command = new TclPrintCmd(tclInterp, Tcl_GetString(NewPrintNameObj()));
-            }
- 
-            switch (printerselection) {
-            case seUnknown:
-            case seDefault:
-                result = command->Select(TRUE);
-                break;
-            case seNamed:
-                result = command->Open(NewExternalFromObj(objv[printerindex]));
-                break;
-            case seSelect:
-                result = command->Select(FALSE);
-                break;
-            }
-            if (result == TCL_ERROR) {
-                if (command->GetError() == 0) {
-                   Tcl_AppendResult(tclInterp, "cancelled", NULL);
-                } else {
-                   AppendSystemError(tclInterp, "can't open printer: ", command->GetError());
-                }
-                delete command;
-                if (document) ckfree((char *)document);
-                if (output) ckfree((char *)output);
+            if ((enum commands)index != cmOpen)
+                commandname = NewPrintNameObj();
+            else if (obji == objc)
+                commandname = NewPrintNameObj();
+            else if (obji == objc-1)
+                commandname = objv[objc-1];
+            else {
+                Tcl_WrongNumArgs(tclInterp, 2, objv, "?-gdi|-raw? ?-default|-select|-name printername? ?command?");
                 return TCL_ERROR;
             }
-            if ((enum commands)(index) == cmOpen) {
+
+            switch (printerinterface) {
+                case ifGdi: command = new TclPrintGdiCmd(tclInterp, Tcl_GetString(commandname)); break;
+                case ifRaw: command = new TclPrintRawCmd(tclInterp, Tcl_GetString(commandname)); break;
+                default: return TCL_ERROR;
+            }
+
+            int result = TCL_OK;
+            switch (printerselection) {
+                case seUnknown:
+                case seDefault: result = command->Select(TRUE); break;
+                case seNamed: result = command->Open(printername); break;
+                case seSelect: result = command->Select(FALSE); break;
+                default: result = TCL_ERROR;
+            }
+            if (result != TCL_OK) {
+                if (command->GetError() == 0)
+                   Tcl_AppendResult(tclInterp, "cancelled", NULL);
+                else
+                   AppendSystemError(tclInterp, "can't open printer: ", command->GetError());
+            } else if ((enum commands)index == cmOpen) {
                 Tcl_SetObjResult(tclInterp, commandname);
                 return TCL_OK;
             }
-            // cmPrint
-            LOGFONT font = {};
-            RECT rect = {0, 0, _(::GetDeviceCaps(command->GetDC(), HORZRES)), _(::GetDeviceCaps(command->GetDC(), VERTRES))};
-            int wrap = FALSE;
 
-            if (obji < objc) {
-                if (strcmp(Tcl_GetString(objv[obji]), "-margins") == 0) {
-                    obji++;
-                    if (obji < objc) {
-                        RECT margins = {0, 0, 0, 0};
-                        if (command->ParseRectArg(objv[obji], &margins) == TCL_ERROR) {
-                            Tcl_AppendResult(tclInterp, ", invalid option value for -margins", NULL);
-                            return TCL_ERROR;
-                        }
-                        rect.left += margins.left;
-                        rect.top += margins.top;
-                        rect.right -= margins.right;
-                        rect.bottom -= margins.bottom;
-                        obji++;  
-                    } else {
-                        Tcl_AppendResult(tclInterp, "missing option value for -margins", NULL);
-                        result = TCL_ERROR;
-                    } 
-                }
-            }
-            if (obji < objc) {
-                if (strcmp(Tcl_GetString(objv[obji]), "-font") == 0) {
-                    obji++;
-                    if (obji < objc) {
-                        if (command->ParseFontArg(objv[obji], &font) == TCL_ERROR) {
-                            Tcl_AppendResult(tclInterp, ", invalid option value for -font", NULL);
-                            return TCL_ERROR;
-                        }
-                        obji++;  
-                    } else {
-                        Tcl_AppendResult(tclInterp, "missing option value for -font", NULL);
-                        result = TCL_ERROR;
-                    } 
-                }
-            }
-            if (obji < objc) {
-                if (strcmp(Tcl_GetString(objv[obji]), "-wordwrap") == 0) {
-                    wrap = TRUE;
-                    obji++;
-                }
-            }
+            Tcl_Obj *document = NULL;
+            Tcl_Obj *output = NULL;
+
             if (result == TCL_OK)
-                if (obji == objc-1) {
-                    if (command->Configure(&font) == TCL_OK)
-                        if (command->PrintDocObj(document, output, &rect, wrap, objv[obji]) == TCL_OK)
-                            Tcl_SetObjResult(tclInterp, Tcl_NewIntObj(result));
-                        else
-                            result = AppendSystemError(tclInterp, "error printing text: ", GetError());
-                    else
-                        result = AppendSystemError(tclInterp, "error configuring device context: ", GetError());
-                } else {
-                    Tcl_WrongNumArgs(tclInterp, 2, objv, "?-gdi? ?-default|-select|-name printername? ?-document documentname? ?-output filename? ?-margins rectspec? ?-font fontspec? ?-wordwrap? text");
-                    result = TCL_ERROR;
-                }
+                result = command->ParseStartParams(objc, objv, &obji, &document, &output);
+
+            switch ((enum commands)index) {
+                case cmPrint: 
+                    {
+                        int wrap = FALSE;
+                        LOGFONT font = {};
+                        RECT rect = {0, 0, _(::GetDeviceCaps(((TclPrintGdiCmd *)command)->GetDC(), HORZRES)), 
+                                           _(::GetDeviceCaps(((TclPrintGdiCmd *)command)->GetDC(), VERTRES))};
+
+                        if (result == TCL_OK)
+                            result = ((TclPrintGdiCmd *)command)->ParsePrintParams(objc, objv, &obji, &rect, &font, &wrap);
+
+                        if (result == TCL_OK)
+                            if (obji == objc-1)
+                                if ((result = ((TclPrintGdiCmd *)command)->Configure(&font)) == TCL_OK)
+                                    if ((result = ((TclPrintGdiCmd *)command)->PrintDoc(document, output, &rect, wrap, objv[obji])) == TCL_OK)
+                                        Tcl_SetObjResult(tclInterp, Tcl_NewIntObj(result));
+                                    else
+                                        AppendSystemError(tclInterp, "error printing text: ", GetError());
+                                else 
+                                    AppendSystemError(tclInterp, "error configuring device context: ", command->GetError());
+                            else {
+                                Tcl_WrongNumArgs(tclInterp, 2, objv, "?-gdi? ?-default|-select|-name printername? ?-document documentname? ?-output filename? ?-margins rectspec? ?-font fontspec? ?-wordwrap? text");
+                                result = TCL_ERROR;
+                            }
+                    }
+                    break;
+                case cmWrite:
+                    {
+                        DWORD written;
+                        if (result == TCL_OK)
+                            if (obji == objc-1)
+                                if ((result = ((TclPrintRawCmd *)command)->StartDoc(document, output)) == TCL_OK)
+                                    if ((written = ((TclPrintRawCmd *)command)->Write(objv[obji])) >= 0)
+                                        if ((result = ((TclPrintRawCmd *)command)->EndDoc()) == TCL_OK)
+                                            Tcl_SetObjResult(tclInterp, Tcl_NewLongObj(written));
+                                        else {
+                                            AppendSystemError(tclInterp, "error ending document: ", command->GetError());
+                                            ((TclPrintRawCmd *)command)->AbortDoc();
+                                        }
+                                    else {
+                                        AppendSystemError(tclInterp, "error printing text: ", command->GetError());
+                                        ((TclPrintRawCmd *)command)->AbortDoc();
+                                    }
+                                else {
+                                    AppendSystemError(tclInterp, "error starting document: ", command->GetError());
+                                    ((TclPrintRawCmd *)command)->AbortDoc();
+                                }
+                            else {
+                                Tcl_WrongNumArgs(tclInterp, 2, objv, "?-raw? ?-default|-select|-name printername? ?-document documentname? ?-output filename data");
+                                result = TCL_ERROR;
+                            }
+                    }
+                    break;
+            }
             delete command;
-            if (document) ckfree((char *)document);
-            if (output) ckfree((char *)output);
             return result;
         }
 
@@ -397,13 +303,53 @@ int TclPrinterCmd::Names (Tcl_Obj *result) {
             return TCL_ERROR;
         }
         for (DWORD i = 0; i < printerscount; i++) {
-            Tcl_ListObjAppendElement(tclInterp, result, NewObjFromExternal(pi[i].pPrinterName));
+            Tcl_DString ds;
+            Tcl_DStringInit(&ds);
+            ExternalToUtf(pi[i].pPrinterName, &ds);
+            Tcl_ListObjAppendElement(tclInterp, result, Tcl_NewStringObj(Tcl_DStringValue(&ds), -1));
+            Tcl_DStringFree(&ds);
         }
         ckfree((char *)pi);
         return TCL_OK;
     } else
         return TCL_ERROR;
 }
+
+int TclPrinterCmd::ParseOpenParams(int objc, Tcl_Obj *CONST objv[], int *obji, 
+                                   interfaces *printerinterface, 
+                                   selections *printerselection, 
+                                   Tcl_Obj **printername) {
+    if (*obji < objc) {
+        if (strcmp(Tcl_GetString(objv[*obji]), "-gdi") == 0) {
+            *printerinterface = ifGdi;
+            (*obji)++;
+        } else if (strcmp(Tcl_GetString(objv[*obji]), "-raw") == 0) {
+            *printerinterface = ifRaw;
+            (*obji)++;
+        }
+    }
+    if (*obji < objc) {
+        if (strcmp(Tcl_GetString(objv[*obji]), "-default") == 0) {
+            *printerselection = seDefault;
+            (*obji)++;
+        } else if (strcmp(Tcl_GetString(objv[*obji]), "-select") == 0) {
+            *printerselection = seSelect;
+            (*obji)++;
+        } else if (strcmp(Tcl_GetString(objv[*obji]), "-name") == 0) {
+            *printerselection = seNamed;
+            (*obji)++;
+            if (*obji < objc) {
+                *printername = objv[*obji];
+                (*obji)++;
+            } else {
+                Tcl_AppendResult(tclInterp, "printer name required for -name", NULL);
+                return TCL_ERROR;
+            }
+        }
+    }
+    return TCL_OK;
+}
+
 
 Tcl_Obj *TclPrinterCmd::NewPrintNameObj() {
     static int suffix = 0;
@@ -413,7 +359,7 @@ Tcl_Obj *TclPrinterCmd::NewPrintNameObj() {
     do {
         sprintf(buffer, "printer%d", suffix);
         suffix++;
-    } while (Tcl_GetCommandInfo(tclInterp, buffer, &info) != NULL);
+    } while (Tcl_GetCommandInfo(tclInterp, buffer, &info) != 0);
 
     return Tcl_NewStringObj(buffer, -1);
 }

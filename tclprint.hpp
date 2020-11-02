@@ -13,42 +13,27 @@ public:
           TclCmd(interp, name),
           lasterrorcode(0),
           pageno(0),
-          pageposy(0),
           pageactive(FALSE),
-          printerdc(NULL),
-          printerfont(NULL),
-          printername(NULL) {
-        DEBUGLOG("TclPrintCmd::Construct *" << this);
-        ZeroMemory(&docinfo, sizeof(docinfo));
-        ZeroMemory(&logfont, sizeof(logfont));
+          documentactive(FALSE) {
+        Tcl_DStringInit(&printername);
     };
 
     virtual ~TclPrintCmd() {
-        Close();
-        DEBUGLOG("TclPrintCmd::Destruct *" << this);
     };
 
-    BOOL Opened();
-    BOOL Started();
-    BOOL PageStarted();
+    virtual BOOL Opened() = 0;
+    virtual BOOL Started();
+    virtual BOOL PageStarted();
 
-    void Close();
-    int Select(BOOL usedefault);
-    int Open(TCHAR *name);
-    int Configure(LOGFONT *fc);
-    int StartDoc(TCHAR *document, TCHAR *output);
-    int AbortDoc();
-    int EndDoc();
-    int StartPage();
-    int EndPage();
-    int Place(RECT *rect, BOOL calc, UINT align, TCHAR *text);
-    int Print(RECT *rect, BOOL wrap, TCHAR *text);
-    int PrintDoc(TCHAR *document, TCHAR *output, RECT *rect, BOOL wrap, TCHAR *text);
-    int PrintDocObj(TCHAR *document, TCHAR *output, RECT *rect, BOOL wrap, Tcl_Obj *textobj);
+    virtual void Close();
 
-    HDC GetDC() {
-        return printerdc;
-    };
+    virtual int Select(BOOL usedefault) = 0;
+    virtual int Open(Tcl_Obj *printer) = 0;
+    virtual int StartDoc(Tcl_Obj *document, Tcl_Obj *output);
+    virtual int AbortDoc();
+    virtual int EndDoc();
+    virtual int StartPage();
+    virtual int EndPage();
 
     DWORD GetError() {
         return lasterrorcode;
@@ -57,26 +42,16 @@ public:
 protected:
 
     int pageno;
-    int pageposy;
     BOOL pageactive;
-    HDC printerdc;
-    HFONT printerfont;
-    TCHAR *printername;
-    DOCINFO docinfo;
-    LOGFONT logfont;
+    BOOL documentactive;
     DWORD lasterrorcode;
+    Tcl_DString printername;
 
     VOID SetError(DWORD errorcode) {
         lasterrorcode = errorcode;
     }
 
-    int ParseFontArg(struct Tcl_Obj *obj, LOGFONT *lf);
-    int ParseAlignArg(struct Tcl_Obj *obj, UINT *format);
-    int ParseRectArg(struct Tcl_Obj *obj, RECT *rect);
-
-private:
-
-    virtual int Command(int objc, struct Tcl_Obj *CONST objv[]);
+    int ParseStartParams(int objc, Tcl_Obj *CONST objv[], int *obji, Tcl_Obj **document, Tcl_Obj **output);
 };
 
 #endif

@@ -5,24 +5,27 @@ static shell exports Tclprinter_Init
 
 NOTES
 
-Windows XP - несколько документов (заданий), можно выполнять последовательно (start/end) в рамках одного контекста (printer open)
-Windows 7  - для каждого документа (задания), надо открывать новый контекст (printer open)
+Windows XP - РЅРµСЃРєРѕР»СЊРєРѕ РґРѕРєСѓРјРµРЅС‚РѕРІ (Р·Р°РґР°РЅРёР№), РјРѕР¶РЅРѕ РІС‹РїРѕР»РЅСЏС‚СЊ РїРѕСЃР»РµРґРѕРІР°С‚РµР»СЊРЅРѕ (start/end) РІ СЂР°РјРєР°С… РѕРґРЅРѕРіРѕ РєРѕРЅС‚РµРєСЃС‚Р° (printer open)
+Windows 7  - РґР»СЏ РєР°Р¶РґРѕРіРѕ РґРѕРєСѓРјРµРЅС‚Р° (Р·Р°РґР°РЅРёСЏ), РЅР°РґРѕ РѕС‚РєСЂС‹РІР°С‚СЊ РЅРѕРІС‹Р№ РєРѕРЅС‚РµРєСЃС‚ (printer open)
 
-Wndows XP - StartDoc не срабатывает после AbortDoc (или после сбойного StartDoc)
+Wndows XP - StartDoc РЅРµ СЃСЂР°Р±Р°С‚С‹РІР°РµС‚ РїРѕСЃР»Рµ AbortDoc (РёР»Рё РїРѕСЃР»Рµ СЃР±РѕР№РЅРѕРіРѕ StartDoc)
+Wndows 7 - StartDoc РЅРµ СЃСЂР°Р±Р°С‚С‹РІР°РµС‚ РїРѕРІС‚РѕСЂРЅРѕ (РїРѕСЃР»Рµ Start/End)
 
-Windows XP - start/printempty/end не создает выходного документа
-Windows 7  - start/end - создает пустой выходной документ
+Windows XP - start/printempty/end РЅРµ СЃРѕР·РґР°РµС‚ РІС‹С…РѕРґРЅРѕРіРѕ РґРѕРєСѓРјРµРЅС‚Р°
+Windows 7  - start/end - СЃРѕР·РґР°РµС‚ РїСѓСЃС‚РѕР№ РІС‹С…РѕРґРЅРѕР№ РґРѕРєСѓРјРµРЅС‚
+
+Windows 7 -  -raw write РЅРµ РїРµС‡Р°С‚Р°РµС‚ РµСЃР»Рё РЅРµ Р·Р°РґР°С‚СЊ РёРјСЏ Р·Р°РґР°РЅРёСЏ (-document)
+Windows 7 -  -raw -output РЅР°РґРѕ Р·Р°РґР°РІР°С‚СЊ РїРѕР»РЅС‹Рј РїСѓС‚РµРј, РёРЅР°С‡Рµ РЅРµРїРѕРЅСЏС‚РЅРѕ РіРґРµ РѕС‚РєСЂС‹РІР°РµС‚
 
 IDEAS
 
 printer -xps
-printer -raw
 
 printer names ?-verbose?
 printer documents ?-verbose?
 printer document pause|resume|abort -document documentname
 
-gdicommand startpage -portrait | -landscape -margins {}
+gdicommand startpage -portrait|-landscape -margins {}
 
 gdicommand info scalex|scaley|cwidth|cheight|page|font|protocol|document|status
 
@@ -31,18 +34,21 @@ gdicommand endpage -callback | -cb
 ? printer print -gdi -startpagecb -endpagecb | pagecallback
 
 gdicommand rect|frame|... -brush xxx -pen xxx
-gdicommand line
 gdicommand image -bitmap|-jpeg|... (using ExtEscape?)
+gdicommand metafile -file filespec
+? gdicommand line
 
-? gdicommand configure -margins rectspec - startpagecb  
+? gdicommand configure -margins rectspec -startpagecb  
 ? gdicommand configure -align mode|-autopos mode|-font name
-? gdicommand configure  -portrait | -landscape
+? gdicommand configure  -portrait|-landscape
 ? gdicommand cget ...
 
-use AbortProc to control aborts
+? use AbortProc to control aborts
+
+? Comdlg32.lib is used only for PrintDlg, exclude using DIALOGS=0 define ?
 
 doc: manual
-doc: table print using place
+doc: table print example using place
 
 ---
 
@@ -54,48 +60,181 @@ A: YES, abortdoc
 
 ===
 
--name printername - the name of the specific output device being used, as shown by the Print Manager (for example, Epson FX-80)
+MANUAL
 
+printer names
 
--calcrect - returns the height of the text
--calcrect - returns the height of the formatted text but does not draw the text.
-            the return value is the offset from top to the bottom of the drawn text
+printer print ? -gdi ?
+              ? -default | select  | -name printername?
+              ? -docname document ?
+              ? -margins rectspec ?
+              ? -font fontspec ?
+              ? -wordwrap ?
+              data
 
--rect - the rectangle (in logical coordinates) in which the text is to be formatted.
+printer open  ? -gdi | -raw ?
+              ? -default | select  | -name printername?
+              contextcommand
 
--font -
+gdicommand start ?-document documentname? ?-output filename?
+gdicommand abort
+gdicommand end
+gdicommand close
+gdicommand startpage
+gdicommand endpage
+gdicommand info      protocol | name | document | page | status | width | height
+gdicommand place     ? -rect rectspec ? ? -align alignspec ? ? -font fontspec ? ? -calcrect ? text
+gdicommand print     ? -margins rectspec ? ? -font fotnspec ? ? -wordwrap ? text
+gdicommand frame     ? -rect rectspec ?
+gdicommand fill      ? -rect rectspec ?
+gdicommand rectangle ? -rect rectspec ?
+gdicommand round     ? -rect rectspec ?
+gdicommand ellipse   ? -rect rectspec ?
+
+rawcommand start ?-document documentname? ?-output filename?
+rawcommand abort
+rawcommand end
+rawcommand close
+rawcommand startpage
+rawcommand endpage
+
+printer names        - enumerates the locally installed printers
+
+printer print        - creates a job and prints lines of text on the one or more pages.
+
+printer open         - opens an interface to the printer, gdi or raw
+
+    -default         - opens default printer
+
+    -select          - executes printer selection dialog
+
+    -name printername- the name of the specific output device being used, as shown by the Print Manager (for example, Epson FX-80)
+
+gdicommand start     -  starts a print job.
+
+    -document documentname - the name of the document.
+
+    -output filename - the name of an output file. If not specified, the output will be sent to the printer device.
+
+gdicommand abort     - stops the current print job and erases everything drawn since the last call to the start.
+
+gdicommand end       - ends a print job.
+
+gdicommand close     - ends page, print job and deletes gdicommand.
+
+gdicommand startpage - prepares the printer driver to accept data.
+
+gdicommand endpage   - notifies the device that the application has finished writing to a page. This function is typically used to direct the device driver to advance to a new page.
+
+gdicommand place     - draws formatted text in the specified rectangle and formats the text according to the specified method (expanding tabs, justifying characters, breaking lines, and so forth). If the function succeeds, the return value is the height of the text in device units. If vcenter or bottom align mode is specified, the return value is the offset from -rect top value to the bottom of the drawn text.
+
+    -rect rectspec   - the rectangle (in device coordinates) in which the text is to be formatted.
+
+        rectspect    - {?left? ?top? ?right? ?bottom?} - rectangle (in device coordinates) in which the text is to be formatted.
+
+    -align alignspec - the method of formatting the text
+
+        alignspec    - {?value1? ?value2? ...}  - can be one or more of the following values:
+            top             Justifies the text to the top of the rectangle.
+            left            Aligns text to the left.
+            center          Centers text horizontally in the rectangle.
+            right           Aligns text to the right.
+            vcenter         Centers text vertically.
+            bottom          Justifies the text to the bottom of the rectangle.
+            wordbreak       Breaks words. Lines are automatically broken between words if a word would extend past the edge of the rectangle specified by the -rect parameter. A carriage return-line feed sequence also breaks the line.
+            singleline      Displays text on a single line only. Carriage returns and line feeds do not break the line.
+            expandtabs      Expands tab characters. The number of characters per tab is eight. The wordellipsis, pathellipsis, and endellipsis values cannot be used with this value.
+            noclip          Draws without clipping. 
+            externalleading Includes the font external leading in line height. 
+            pathellipsis    For displayed text, replaces characters in the middle of the string with ellipses so that the result fits in the specified rectangle. 
+            wordellipsis    Truncates any word that does not fit in the rectangle and adds ellipses.
+            endellipsis     For displayed text, if the end of a string does not fit in the rectangle, it is truncated and ellipses are added. If a word that is not at the end of the string goes beyond the limits of the rectangle, it is truncated without ellipses.
+
+            top, bottom and vcenter are usable only with the singleline value.
+
+    -font fontspec   - specified a logical font with the folollowing characteristics. 
+
+        fontspec     - {?name? ?height? ?width? ?weight? ?style? ?charset? ?quality? ?pitch? ?family?}
+
        	name - string that specifies the typeface name of the font.
-        height - the height, in logical units, of the font's character cell or character. 
-        width - the average width, in logical units, of characters in the requested font. 
-         
----
+        height - the height, in logical units, of the font's character cell or character.
+        width - the average width, in logical units, of characters in the requested font. If this value is zero, the font mapper chooses a closest match value. 
+        weight - the weight of the font in the range 0 through 1000. For example, 400 is normal and 700 is bold. If this value is zero, a default weight is used.
+            The following values are defined for convenience:
+            thin           100
+            extralight     200
+            ultralight     200
+            light          300
+            normal         400
+            regular        400
+            medium         500
+            semibold       600
+            demibold       600
+            bold           700
+            extrabold      800
+            ultrabold      800
+            heavy          900
+            black          900
+        style - ?italic? ?underline? ?strikeout?
+        charset - the character set, one of the:
+            ansi
+            baltic
+            chinesebig5
+            default
+            easteurope
+            gb2312
+            greek
+            hangul
+            mac
+            oem
+            russian
+            shiftjis
+            symbol
+            turkish
+            vietnamese
+            johab
+            arabic
+            hebrew
+            thai
+            oem
+            default
+        quality - the output quality:
+            antialiased     font is antialiased, or smoothed, if the font supports it and the size of the font is not too small or too large.
+            default         appearance of the font does not matter.
+            draft           appearance of the font is less important than when the proof value is used. 
+            nonantialiased  font is never antialiased, that is, font smoothing is not done.
+            proof           character quality of the font is more important than exact matching of the logical-font attributes. 
+        pitch
+            default
+            fixed
+            variable
+        family
+            decorative
+            dontcare
+            modern
+            roman
+            script
+            swiss
 
-SetTextAlign (hdc, GetTextAlign(hdc) & (~TA_CENTER))
-SetTextAlign (hdc,TA_LEFT | <other flags>)
+    -calcrect        - returns the bounds of the formatted text but does not draw the text.
 
-"The text alignment mode for the device context must include the TA_LEFT,
-TA_TOP, and TA_NOUPDATECP flags".
-Jeff Partch [VC++ MVP]
+gdicommand print     - prints lines of text. Returns number of characters printed on the current page.
 
-TA_BASELINE
-TA_BOTTOM
-TA_TOP
-TA_CENTER
-TA_LEFT
-TA_RIGHT
-TA_NOUPDATECP
-TA_RTLREADING
-TA_UPDATECP
+    -margins         - left, top, right and bottom margins/
 
-"baseline"
-"bottom"
-"top"
-"center"
-"left"
-"right"
-"noupdatecp"
-"rtlreading"
-"updatecp"
+    -font            - see place command
+
+    -wordwrap        - breaks words, lines are automatically broken between words if a word would extend past the right margin.
+
+gdicommand frame     - draws a border around the specified rectangle.
+
+gdicommand fill      - fills a rectangle. This function includes the left and top borders, but excludes the right and bottom borders of the rectangle.
+
+gdicommand rectangle - draws a rectangle. The rectangle is outlined and filled.
+
+gdicommand round     - draws a rectangle with rounded corners. The rectangle is outlined and filled.
+
+gdicommand ellipse   - draws an ellipse. The center of the ellipse is the center of the specified bounding rectangle. The ellipse is outlined and filled.
 
 ---
 

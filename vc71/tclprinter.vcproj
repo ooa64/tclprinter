@@ -135,6 +135,12 @@
 			<File
 				RelativePath="..\tclprinter.cpp">
 			</File>
+			<File
+				RelativePath="..\tclprintgdi.cpp">
+			</File>
+			<File
+				RelativePath="..\tclprintraw.cpp">
+			</File>
 		</Filter>
 		<Filter
 			Name="Header Files"
@@ -151,6 +157,12 @@
 			</File>
 			<File
 				RelativePath="..\tclprinter.hpp">
+			</File>
+			<File
+				RelativePath="..\tclprintgdi.hpp">
+			</File>
+			<File
+				RelativePath="..\tclprintraw.hpp">
 			</File>
 		</Filter>
 		<Filter
