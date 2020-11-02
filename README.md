@@ -117,22 +117,21 @@ $printer close
 
 Changes...
 
-2014-03-04 - start
-2014-03-16 - alpha 1. GDI interface
-2014-03-20 - alpha 2. RAW interface
-2014-03-27 - alpha 3. Job control (rawcommand document)
-2014-04-02 - alpha 4. Compatibility fixes and cleanups
-                      Tcl 8.5/8.6 - all tests passed
-                      Gcc 4.8.1 (mingw) - all tests passed
-                      VC 6.0 / Windows 98 - failed on test 6-1-3/4 and some errorcodes
+    2014-03-04 - start
+    2014-03-16 - alpha 1. GDI interface
+    2014-03-20 - alpha 2. RAW interface
+    2014-03-27 - alpha 3. Job control (rawcommand document)
+    2014-04-02 - alpha 4. Compatibility fixes and cleanups
+                          Tcl 8.5/8.6 - all tests passed
+                          Gcc 4.8.1 (mingw) - all tests passed
+                          VC 6.0 / Windows 98 - failed on test 6-1-3/4 and some errorcodes
 
+Missing...
 
-What's Missing?
-
-1. Documentation.
-2. Error reporting (TclWinConvertError, Tcl_SetErrorCode).
+1. Good documentation (just a tclptrinter.txt).
+2. Advancef error reporting (TclWinConvertError, Tcl_SetErrorCode).
 3. Callback for startpage/endpage.
 4. Noninteractive printer setup (page form, orientation, copies etc).
 5. Image printing.
 6. XPS interface?
-7. Testing, testing, testing... Different Windows versions, different printers.
+7. Testing on various Windows versions, and varios printers.
