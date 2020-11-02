@@ -45,11 +45,11 @@ int TclPrintGdiCmd::Command (int objc, struct Tcl_Obj *CONST objv[])
     int index;
 
     if (objc < 2) {
-        Tcl_WrongNumArgs(tclInterp, 1, objv, "command");
+        Tcl_WrongNumArgs(tclInterp, 1, objv, "subcommand");
         return TCL_ERROR;
     }
 
-    if (Tcl_GetIndexFromObj(tclInterp, objv[1], commands, "command", 0, &index) != TCL_OK) {
+    if (Tcl_GetIndexFromObj(tclInterp, objv[1], commands, "subcommand", 0, &index) != TCL_OK) {
         return TCL_ERROR;
     }
 
@@ -58,7 +58,7 @@ int TclPrintGdiCmd::Command (int objc, struct Tcl_Obj *CONST objv[])
     case cmInfo:
         if (objc == 3) {
             if (strcmp(Tcl_GetString(objv[2]), "protocol") == 0)
-                Tcl_SetResult(tclInterp, "gdi", NULL);
+                Tcl_SetResult(tclInterp, (char *)"gdi", NULL);
             else if (strcmp(Tcl_GetString(objv[2]), "name") == 0)
                 Tcl_SetResult(tclInterp, Tcl_DStringValue(&printername), NULL);
             else if (strcmp(Tcl_GetString(objv[2]), "page") == 0)
@@ -83,7 +83,7 @@ int TclPrintGdiCmd::Command (int objc, struct Tcl_Obj *CONST objv[])
 //              if _(::GetTextMetrics(printerdc, &tm))
 //                  Tcl_SetObjResult(tclInterp, Tcl_NewIntObj(tm.tmHeight));
                 else
-                   Tcl_SetResult(tclInterp, "", NULL);
+                   Tcl_ResetResult(tclInterp);
             } else if (strcmp(Tcl_GetString(objv[2]), "cwidth") == 0) {
                 SIZE s;
                 if (_(::GetTextExtentPoint32(printerdc, _T("x"), 1, &s)))
@@ -95,7 +95,7 @@ int TclPrintGdiCmd::Command (int objc, struct Tcl_Obj *CONST objv[])
 //                  Tcl_SetObjResult(tclInterp, Tcl_NewIntObj((tm.tmAveCharWidth + tm.tmMaxCharWidth) / 2));
 //                  Tcl_SetObjResult(tclInterp, Tcl_NewIntObj(tm.tmAveCharWidth + _(::GetTextCharacterExtra(printerdc))));
                 else
-                   Tcl_SetResult(tclInterp, "", NULL);
+                   Tcl_ResetResult(tclInterp);
             } else {
                 Tcl_AppendResult(tclInterp, "bad option ", Tcl_GetString(objv[2]), NULL);
                 return TCL_ERROR;
@@ -110,7 +110,6 @@ int TclPrintGdiCmd::Command (int objc, struct Tcl_Obj *CONST objv[])
         {
             Tcl_Obj *document = NULL;
             Tcl_Obj *output = NULL;
-            int result = TCL_OK;
             int obji = 2;
 
             if (!Opened()) {
@@ -131,7 +130,7 @@ int TclPrintGdiCmd::Command (int objc, struct Tcl_Obj *CONST objv[])
             if (StartDoc(document, output) != TCL_OK) {
 //              StartDoc hasn't set last error 
 //              return AppendSystemError(tclInterp, "error starting document: ", GetError());
-                Tcl_SetResult(tclInterp, "error starting document", NULL);
+                Tcl_SetResult(tclInterp, (char *)"error starting document", NULL);
                 return TCL_ERROR;
             } 
             return TCL_OK;
@@ -188,8 +187,8 @@ int TclPrintGdiCmd::Command (int objc, struct Tcl_Obj *CONST objv[])
 
     case cmPlace:
         {
-//          LOGFONT font = {};
-            LOGFONT font = logfont;
+            LOGFONT font = {0};
+//          LOGFONT font = logfont;
             RECT rect = {0, 0, _(::GetDeviceCaps(printerdc, HORZRES)), _(::GetDeviceCaps(printerdc, VERTRES))};
             UINT align = 0;
             BOOL calc = FALSE;
@@ -227,8 +226,8 @@ int TclPrintGdiCmd::Command (int objc, struct Tcl_Obj *CONST objv[])
 
     case cmPrint:
         {
-//          LOGFONT font = {};
-            LOGFONT font = logfont;
+            LOGFONT font = {0};
+//          LOGFONT font = logfont;
             RECT rect = {0, 0, _(::GetDeviceCaps(printerdc, HORZRES)), _(::GetDeviceCaps(printerdc, VERTRES))};
             BOOL wrap = FALSE;
             int obji = 2;
@@ -269,41 +268,15 @@ int TclPrintGdiCmd::Command (int objc, struct Tcl_Obj *CONST objv[])
             switch ((enum commands)index) {
                 case cmFrame: brush = BLACK_BRUSH; break;
                 case cmFill: brush = GRAY_BRUSH; break;
+                default: break;
             }
 
             if (!PageStarted()) {
                 Tcl_AppendResult(tclInterp, "page is not started", NULL);
                 return TCL_ERROR;
             }
-            if (obji < objc) {
-                if (strcmp(Tcl_GetString(objv[obji]), "-rect") == 0) {
-                    obji++;
-                    if (obji < objc) {
-                        if (ParseRectArg(objv[obji], &rect) != TCL_OK) {
-                            Tcl_AppendResult(tclInterp, ", invalid option value for ", Tcl_GetString(objv[obji-1]), NULL);
-                            return TCL_ERROR;
-                        }
-                        obji++;  
-                    } else {
-                        Tcl_AppendResult(tclInterp, "missing option value for ", Tcl_GetString(objv[obji-1]), NULL);
-                        return TCL_ERROR;
-                    } 
-                }
-            }
-            if (obji < objc) {
-                if (strcmp(Tcl_GetString(objv[obji]), "-brush") == 0) {
-                    obji++;
-                    if (obji < objc) {
-                        if (ParseBrushArg(objv[obji], &brush) != TCL_OK) {
-                            Tcl_AppendResult(tclInterp, ", invalid option value for ", Tcl_GetString(objv[obji-1]), NULL);
-                            return TCL_ERROR;
-                        }
-                        obji++;  
-                    } else {
-                        Tcl_AppendResult(tclInterp, "missing option value for ", Tcl_GetString(objv[obji-1]), NULL);
-                        return TCL_ERROR;
-                    } 
-                }
+            if (ParseDrawParams(objc, objv, &obji, &rect, &brush) != TCL_OK) {
+                return TCL_ERROR;
             }
             if (obji == objc) {
                 if (SelectObject(printerdc, GetStockObject(brush)) != NULL &&
@@ -324,6 +297,8 @@ int TclPrintGdiCmd::Command (int objc, struct Tcl_Obj *CONST objv[])
                         break;
                     case cmEllipse:
                         result = Ellipse(printerdc, rect.left, rect.top, rect.right, rect.bottom);
+                        break;
+                    default:
                         break;
                     }
                     if (result) 
@@ -377,10 +352,7 @@ void TclPrintGdiCmd::Close() {
         EndDoc();
     if (Opened())
         _(::DeleteDC(printerdc));
-    if (printerfont) 
-        _(::DeleteObject(printerfont));
     printerdc = NULL;
-    printerfont = NULL;
     ZeroMemory(&logfont, sizeof(logfont));
     TclPrintCmd::Close();
 }
@@ -391,13 +363,13 @@ BOOL TclPrintGdiCmd::Opened() {
 
 #ifdef DIALOGS
 int TclPrintGdiCmd::Select (BOOL setupdialog) {
+    int result = TCL_ERROR;
     PRINTDLG printdlg = {0};
     ZeroMemory(&printdlg, sizeof(printdlg));
     printdlg.lStructSize = sizeof(printdlg);
     printdlg.Flags = PD_ALLPAGES | PD_USEDEVMODECOPIES | PD_NOPAGENUMS | PD_HIDEPRINTTOFILE | PD_NOSELECTION | PD_RETURNDC;
     if (setupdialog)
         printdlg.Flags |= PD_PRINTSETUP;
-    int result = TCL_ERROR;
 
     Close();
 
@@ -436,30 +408,27 @@ int TclPrintGdiCmd::Open(Tcl_Obj *printer) {
 }
 
 int TclPrintGdiCmd::OpenDefault() {
-    DWORD size = 0;
-    TCHAR* buffer = NULL;
     int result = TCL_ERROR;
+    TCHAR* name = NULL;
 
     Close();
 
-    _(::GetDefaultPrinter(NULL, &size));
-    if (size > 0) {
-        buffer = (TCHAR *)ckalloc(size);
-        if (_(::GetDefaultPrinter(buffer, &size))) {
-            printerdc = _(::CreateDC(_T("WINSPOOL"), buffer, NULL, NULL));
-            if (printerdc) {
-                ExternalToUtf(buffer, &printername);
-                result = TCL_OK;
-            }
+    if (NewDefaultPrinterName(&name)) {
+        printerdc = _(::CreateDC(_T("WINSPOOL"), name, NULL, NULL));
+        if (printerdc) {
+            ExternalToUtf(name, &printername);
+            result = TCL_OK;
         }
-        ckfree((char *)buffer);
+        ckfree((char *)name);
     }
+
     if (result == TCL_ERROR) 
         SetError(::GetLastError());
     return result;
 }
 
 int TclPrintGdiCmd::Configure(LOGFONT *lf) {
+    HFONT font;
     int result = TCL_OK;
 
     SetError(0);
@@ -470,12 +439,12 @@ int TclPrintGdiCmd::Configure(LOGFONT *lf) {
         lf->lfHeight = -MulDiv(userheight, _(::GetDeviceCaps(printerdc, LOGPIXELSY)), 72);
         lf->lfWidth = -MulDiv(userwidth, _(::GetDeviceCaps(printerdc, LOGPIXELSX)), 72);
 
-        printerfont = _(::CreateFontIndirect(lf));
+        font = _(::CreateFontIndirect(lf));
 
         lf->lfHeight = userheight;
         lf->lfWidth = userwidth;
 
-        if (printerfont && _(::SelectObject(printerdc, printerfont)) != NULL) {
+        if (font && _(::SelectObject(printerdc, font)) != NULL) {
             logfont = *lf;
         } else {
             SetError(::GetLastError());
@@ -486,7 +455,7 @@ int TclPrintGdiCmd::Configure(LOGFONT *lf) {
 }
 
 int TclPrintGdiCmd::StartDoc(Tcl_Obj *document, Tcl_Obj *output) {
-    int result;
+    int result = TCL_ERROR;
     Tcl_DString documentds, outputds;
     Tcl_DStringInit(&documentds);
     Tcl_DStringInit(&outputds);
@@ -508,7 +477,6 @@ int TclPrintGdiCmd::StartDoc(Tcl_Obj *document, Tcl_Obj *output) {
         SetError(0); // StartDoc does not set LastError
         pageno = 0;
         pageposy = 0;
-        result = TCL_ERROR;
     } else
         result = TclPrintCmd::StartDoc(document, output);
 
@@ -623,9 +591,15 @@ int TclPrintGdiCmd::PrintDoc(Tcl_Obj *document, Tcl_Obj *output, RECT *rect, BOO
                     break;
                 }
             }
-            result = EndPage();
+            if (result == TCL_OK)
+                result = EndPage();
+            else
+                EndPage();
         }
-        result = EndDoc();
+        if (result == TCL_OK)
+            result = EndDoc(); 
+        else
+            EndDoc();
     }
     Tcl_DStringFree(&textds);
     if (result == TCL_OK)
@@ -637,7 +611,6 @@ int TclPrintGdiCmd::PrintDoc(Tcl_Obj *document, Tcl_Obj *output, RECT *rect, BOO
 // privates
 
 int TclPrintGdiCmd::PrintText(RECT *rect, BOOL wrap, TCHAR *text) {
-    UINT format = DT_NOPREFIX | DT_EXPANDTABS | DT_SINGLELINE;
     TCHAR *start = text;
     TCHAR *stop = text;
     SIZE outsize;
@@ -659,7 +632,6 @@ int TclPrintGdiCmd::PrintText(RECT *rect, BOOL wrap, TCHAR *text) {
         _(::MoveToEx(printerdc, p.x, p.y, NULL));
         int pageposy = p.y;
         int pageposx = p.x;
-        int linewidth = 0;
         while (*start) {
 #ifdef _DEBUG
             MoveToEx(printerdc, 0, 0, &p);
@@ -678,7 +650,7 @@ int TclPrintGdiCmd::PrintText(RECT *rect, BOOL wrap, TCHAR *text) {
 
                 nextstop = _tcspbrk(stop, _T(" \t\n"));
                 if (nextstop == NULL)
-                    nextstop = _tcsrchr(stop, 0);
+                    nextstop = _tcsrchr(stop, '\0');
 
                 _(::GetTextExtentPoint32(printerdc, start, (int)(nextstop - start), &outsize));
 
@@ -807,8 +779,41 @@ int TclPrintGdiCmd::ParsePlaceParams(int objc, Tcl_Obj *CONST objv[], int *obji,
     return TCL_OK;
 }
 
+int TclPrintGdiCmd::ParseDrawParams(int objc, Tcl_Obj *CONST objv[], int *obji, RECT *rect, int *brush) {
+    if (*obji < objc) {
+        if (strcmp(Tcl_GetString(objv[*obji]), "-rect") == 0) {
+            (*obji)++;
+            if (*obji < objc) {
+                if (ParseRectArg(objv[*obji], rect) != TCL_OK) {
+                    Tcl_AppendResult(tclInterp, ", invalid option value for ", Tcl_GetString(objv[*(obji-1)]), NULL);
+                    return TCL_ERROR;
+                }
+                (*obji)++;  
+            } else {
+                Tcl_AppendResult(tclInterp, "missing option value for ", Tcl_GetString(objv[*(obji-1)]), NULL);
+                return TCL_ERROR;
+            } 
+        }
+    }
+    if (*obji < objc) {
+        if (strcmp(Tcl_GetString(objv[*obji]), "-brush") == 0) {
+            (*obji)++;
+            if (*obji < objc) {
+                if (ParseBrushArg(objv[*obji], brush) != TCL_OK) {
+                    Tcl_AppendResult(tclInterp, ", invalid option value for ", Tcl_GetString(objv[*(obji-1)]), NULL);
+                    return TCL_ERROR;
+                }
+                (*obji)++;  
+            } else {
+                Tcl_AppendResult(tclInterp, "missing option value for ", Tcl_GetString(objv[*(obji-1)]), NULL);
+                return TCL_ERROR;
+            } 
+        }
+    }
+    return TCL_OK;
+}
+
 int TclPrintGdiCmd::ParsePrintParams(int objc, Tcl_Obj *CONST objv[], int *obji, RECT *rect, LOGFONT *font, BOOL *wrap) {
-    RECT margins = {0, 0, 0, 0};
     if (*obji < objc) {
         if (strcmp(Tcl_GetString(objv[*obji]), "-margins") == 0) {
             (*obji)++;
@@ -891,12 +896,12 @@ int TclPrintGdiCmd::ParseFontArg(struct Tcl_Obj *obj, LOGFONT *lf) {
         FW_BLACK
     };
 
-    static CONST char *stylesMap[] = {
-        "italic",
-        "underline",
-        "strikeout",
-        0L
-    };
+//    static CONST char *stylesMap[] = {
+//        "italic",
+//        "underline",
+//        "strikeout",
+//        0L
+//    };
 
     enum styles {
         mapItalic,
@@ -1004,10 +1009,10 @@ int TclPrintGdiCmd::ParseFontArg(struct Tcl_Obj *obj, LOGFONT *lf) {
         FF_SWISS
     };
 
-//efine FF_MASK (7<<4)
-#define FF_MASK (FF_DONTCARE|FF_ROMAN|FF_SWISS|FF_MODERN|FF_SCRIPT|FF_DECORATIVE)
-//efine PITCH_MASK 3
-#define PITCH_MASK (DEFAULT_PITCH | FIXED_PITCH | VARIABLE_PITCH)
+//efine FF_MASK (BYTE)(7<<4)
+#define FF_MASK (BYTE)(FF_DONTCARE|FF_ROMAN|FF_SWISS|FF_MODERN|FF_SCRIPT|FF_DECORATIVE)
+//efine PITCH_MASK (BYTE)3
+#define PITCH_MASK (BYTE)(DEFAULT_PITCH | FIXED_PITCH | VARIABLE_PITCH)
 
     int objc;
     Tcl_Obj **objv;
@@ -1062,12 +1067,13 @@ int TclPrintGdiCmd::ParseFontArg(struct Tcl_Obj *obj, LOGFONT *lf) {
                 obji++;
         }
         // style 
-        if (obji < objc)
+        if (obji < objc) {
             if (strcmp(Tcl_GetString(objv[obji]), "italic") == 0) {
                 lf->lfItalic = TRUE;
                 obji++;
             } else if (Tcl_GetCharLength(objv[obji]) == 0)
                 obji++;
+        }
         if (obji < objc) {
             if (strcmp(Tcl_GetString(objv[obji]), "underline") == 0) {
                 lf->lfUnderline = TRUE;
@@ -1233,7 +1239,7 @@ int TclPrintGdiCmd::ParseBrushArg(struct Tcl_Obj *obj, int *brush) {
 int TclPrintGdiCmd::ParseRectArg(struct Tcl_Obj *obj, RECT *rect) {
     int objc;
     Tcl_Obj **objv;
-    if ((Tcl_ListObjGetElements(tclInterp, obj, &objc, &objv) == TCL_OK))
+    if ((Tcl_ListObjGetElements(tclInterp, obj, &objc, &objv) == TCL_OK)) {
         if (objc > 4)
             Tcl_AppendResult(tclInterp, "too many elements", NULL);
         else if ((objc <= 0 || Tcl_GetLongFromObj(tclInterp, objv[0], &rect->left) == TCL_OK) &&
@@ -1241,5 +1247,6 @@ int TclPrintGdiCmd::ParseRectArg(struct Tcl_Obj *obj, RECT *rect) {
                  (objc <= 2 || Tcl_GetLongFromObj(tclInterp, objv[2], &rect->right) == TCL_OK) &&
                  (objc <= 3 || Tcl_GetLongFromObj(tclInterp, objv[3], &rect->bottom) == TCL_OK))
             return TCL_OK;
+    }
     return TCL_ERROR;
 }

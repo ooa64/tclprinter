@@ -9,10 +9,9 @@ class TclPrintGdiCmd : public TclPrintCmd {
 
 public:
 
-    TclPrintGdiCmd(Tcl_Interp *interp, char *name):
-          TclPrintCmd(interp, name),
-          printerdc(NULL),
-          pageposy(0) {
+    TclPrintGdiCmd(Tcl_Interp *interp, char *name) : TclPrintCmd(interp, name) {
+        printerdc = NULL;
+        pageposy = 0;
         Tcl_DStringInit(&printername);
         ZeroMemory(&logfont, sizeof(logfont));
     };
@@ -49,13 +48,13 @@ protected:
 
     int pageposy;
     HDC printerdc;
-    HFONT printerfont;
     LOGFONT logfont;
 
     int PrintText(RECT *rect, BOOL wrap, TCHAR *text);
 
     int ParsePlaceParams(int objc, Tcl_Obj *CONST objv[], int *obji, RECT *rect, UINT *align, LOGFONT *font, BOOL *calc);
     int ParsePrintParams(int objc, Tcl_Obj *CONST objv[], int *obji, RECT *rect, LOGFONT *font, BOOL *wrap);
+    int ParseDrawParams(int objc, Tcl_Obj *CONST objv[], int *obji, RECT *rect, int *brush);
     int ParseFontArg(Tcl_Obj *obj, LOGFONT *lf);
     int ParseAlignArg(Tcl_Obj *obj, UINT *format);
     int ParseBrushArg(Tcl_Obj *obj, int *brush);

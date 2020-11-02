@@ -1,5 +1,7 @@
 MANUAL
 
+printer default
+
 printer names
 
 printer print ? -gdi ?
@@ -19,7 +21,7 @@ printer write ? -raw ?
 
 printer open  ? -gdi | -raw ?
               ? -default | -printdialog | -setupdialog | -name printername?
-              contextcommand
+              ? contextcommand ?
 
 gdicommand start     ?-document documentname? ?-output outputfilename?
 gdicommand end
@@ -36,34 +38,51 @@ gdicommand rectangle ? -rect rectspec ?
 gdicommand round     ? -rect rectspec ?
 gdicommand ellipse   ? -rect rectspec ?
 
-rawcommand start ?-document documentname? ?-output outputfilename?
+rawcommand start     ?-document documentname? ?-output outputfilename?
 rawcommand end
 rawcommand close
 rawcommand abort
 rawcommand startpage
 rawcommand endpage
 rawcommand write data
+rawcommand document  select ?selectspec? | id | status ?id? | cancel ?id? | delete ?id? | pause ?id? | resume ?id? | restart ?id? | retain ?id? | release ?id?
+
+DESCRIPTION
+
+printer default      - returns default printer name
 
 printer names        - enumerates the locally installed printers
 
-printer print        - creates a job and prints lines of text on the one or more pages.
-                       The command
-                           printer print -name $printer $text
-                       is a shortcat for
-                           set p [printer open -name $printer]
+printer write        - creates a job and prints lines of text on the one or more pages using raw interface.
+                       The command:
+                           printer write -name $printer $data
+                       is a shortcut for the following script:
+                           set p [printer open -raw -name $printer]
                            $p start
                            $p startpage
-                           while true {
+                           $p write $data
+                           $p endpage
+                           $p end
+                           $p close
+
+printer print        - creates a job and prints lines of text on the one or more pages using gdi interface.
+                       The command:
+                           printer print -name $printer $text
+                       is a shortcut for the following script:
+                           set p [printer open -gdi -name $printer]
+                           $p start
+                           $p startpage
+                           while {[string length $text]} {
                                set text [string range $text [$p print $text] end]
                                if {[string length $text]} {
                                    $p endpage
                                    $p startpage
-                               } else {
-                                   break
+                               }
                            }
                            $p endpage
                            $p end
                            $p close
+
 printer open         - opens an interface to the printer, gdi or raw
     -default         - opens default printer
     -select          - executes printer selection dialog
@@ -298,6 +317,9 @@ Windows 7  - start/end - создает пустой выходной докум
 Windows XP,7 -  -raw write не печатает если не задать имя задания (-document)
 Windows XP,7 -  -raw -output надо задавать полным путем, иначе непонятно где открывает
 
+Windows 98 - 'document delete' does not work, use 'document cancel'
+Windows 98 - 'document select' does not work on gdi documents?
+
 IDEAS
 
 printer -xps
@@ -325,8 +347,5 @@ gdicommand metafile -file filespec
 
 rawcommand info document
 
+doc: good manual
 doc: table print example (using place)
-     place/rect/ellipse example
-     job control example for raw and gdi jobs
-
----

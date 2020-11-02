@@ -9,12 +9,11 @@ class TclPrintCmd : public TclCmd {
 
 public:
 
-    TclPrintCmd(Tcl_Interp *interp, char *name):
-          TclCmd(interp, name),
-          lasterrorcode(0),
-          pageno(0),
-          pageactive(FALSE),
-          documentactive(FALSE) {
+    TclPrintCmd(Tcl_Interp *interp, CONST char *name): TclCmd(interp, name) {
+        lasterrorcode = 0;
+        pageno = 0;
+        pageactive = FALSE;
+        documentactive = FALSE;
         Tcl_DStringInit(&printername);
     };
 

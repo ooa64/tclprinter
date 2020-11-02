@@ -31,13 +31,13 @@ public:
 
   TclCmd();
 
-  TclCmd(Tcl_Interp * interp, char * name);
-  TclCmd(Tcl_Interp * interp, char * name, TclCmd * parent);
+  TclCmd(Tcl_Interp * interp, CONST char * name);
+  TclCmd(Tcl_Interp * interp, CONST char * name, TclCmd * parent);
 
   virtual ~TclCmd();
   // virtual destructor for all objects
 
-  void Rename(Tcl_Interp * interp, char * name);
+  void Rename(Tcl_Interp * interp, CONST char * name);
   int IsNamed() {return (tclInterp && tclToken);};
   CONST char * Name() {return IsNamed() ?
            Tcl_GetCommandName(tclInterp, tclToken) : NULL;};

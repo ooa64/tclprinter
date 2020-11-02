@@ -38,20 +38,23 @@ int TclPrintRawCmd::Command (int objc, struct Tcl_Obj *CONST objv[])
     int index;
 
     if (objc < 2) {
-        Tcl_WrongNumArgs(tclInterp, 1, objv, "command");
+        Tcl_WrongNumArgs(tclInterp, 1, objv, "subcommand");
         return TCL_ERROR;
     }
 
-    if (Tcl_GetIndexFromObj(tclInterp, objv[1], commands, "command", 0, &index) != TCL_OK) {
+    if (Tcl_GetIndexFromObj(tclInterp, objv[1], commands, "subcommand", 0, &index) != TCL_OK) {
         return TCL_ERROR;
     }
+
+//  Tcl_ResetResult(tclInterp);
+//  Tcl_SetErrorCode(tclInterp, NULL);
 
     switch ((enum commands)(index)) {
 
     case cmInfo:
         if (objc == 3) {
             if (strcmp(Tcl_GetString(objv[2]), "protocol") == 0)
-                Tcl_SetResult(tclInterp, "raw", NULL);
+                Tcl_SetResult(tclInterp, (char *)"raw", NULL);
             else if (strcmp(Tcl_GetString(objv[2]), "name") == 0)
                 Tcl_SetResult(tclInterp, Tcl_DStringValue(&printername), NULL);
             else if (strcmp(Tcl_GetString(objv[2]), "page") == 0)
@@ -224,7 +227,7 @@ int TclPrintRawCmd::Command (int objc, struct Tcl_Obj *CONST objv[])
             } else
                return AppendSystemError(tclInterp, "error quering status: ", GetError());
         } else {
-            Tcl_WrongNumArgs(tclInterp, 2, objv, "?property?");
+            Tcl_WrongNumArgs(tclInterp, 2, objv, NULL);
             return TCL_ERROR;
         }
 
@@ -281,13 +284,13 @@ void TclPrintRawCmd::Abort() {
 
 #ifdef DIALOGS
 int TclPrintRawCmd::Select (BOOL setupdialog) {
+    int result = TCL_ERROR;
     PRINTDLG printdlg = {0};
     ZeroMemory(&printdlg, sizeof(printdlg));
     printdlg.lStructSize = sizeof(printdlg);
     printdlg.Flags = PD_ALLPAGES | PD_USEDEVMODECOPIES | PD_NOPAGENUMS | PD_HIDEPRINTTOFILE | PD_NOSELECTION;
     if (setupdialog)
         printdlg.Flags |= PD_PRINTSETUP;
-    int result = TCL_ERROR;
 
     Close();
 
@@ -329,23 +332,17 @@ int TclPrintRawCmd::Open(Tcl_Obj *printer) {
 }
 
 int TclPrintRawCmd::OpenDefault() {
-    DWORD size = 0;
-    TCHAR* buffer = NULL;
     int result = TCL_ERROR;
+    TCHAR* name;
 
     Close();
 
-    _(::GetDefaultPrinter(NULL, &size));
-    if (size > 0) {
-        buffer = (TCHAR *)ckalloc(size);
-        if (_(::GetDefaultPrinter(buffer, &size))) {
-            if (_(::OpenPrinter(buffer, &printerhandle, NULL))) {
-                ExternalToUtf(buffer, &printername);
-                result = TCL_OK;
-            } else 
-                printerhandle = NULL;
-        }
-        ckfree((char *)buffer);
+    if (NewDefaultPrinterName(&name)) {
+        if (_(::OpenPrinter(name, &printerhandle, NULL))) {
+            ExternalToUtf(name, &printername);
+            result = TCL_OK;
+         }
+         ckfree((char *)name);
     }
 
     if (result != TCL_OK)
@@ -365,7 +362,7 @@ int TclPrintRawCmd::StartDoc(Tcl_Obj *document, Tcl_Obj *output) {
 
     DOC_INFO_1 docinfo;
     ZeroMemory(&docinfo, sizeof(DOC_INFO_1));
-    docinfo.pDatatype = _T("RAW");
+    docinfo.pDatatype = (LPSTR)_T("RAW");
     if (document) {
         UtfToExternal(Tcl_GetString(document), &documentds);
         docinfo.pDocName = (TCHAR *)Tcl_DStringValue(&documentds);
@@ -501,7 +498,7 @@ int TclPrintRawCmd::Status(Tcl_Obj *statuslist) {
         info = (PRINTER_INFO_2 *)ckalloc(size);
 //      this windows call does not work as expected (
         if (_(::GetPrinter(printerhandle, 2, (LPBYTE)info, size, &size))) {
-            for (int i = 0; i < SIZEOFARRAY(status); i++)
+            for (unsigned i = 0; i < SIZEOFARRAY(status); i++)
                 if ((info->Status & status[i]))
                     Tcl_ListObjAppendElement(NULL, statuslist, Tcl_NewStringObj(statusMap[i], -1));
             if ((info->Attributes & PRINTER_ATTRIBUTE_WORK_OFFLINE))
@@ -513,16 +510,6 @@ int TclPrintRawCmd::Status(Tcl_Obj *statuslist) {
     SetError(result == TCL_OK ? 0 : ::GetLastError());
     return result;
 }
-
-#ifndef JOB_STATUS_COMPLETE
-#define JOB_STATUS_COMPLETE 0x00001000
-#endif
-#ifndef JOB_STATUS_RETAINED
-#define JOB_STATUS_RETAINED 0x00002000
-#endif
-#ifndef JOB_STATUS_RENDERING_LOCALLY
-#define JOB_STATUS_RENDERING_LOCALLY 0x00004000
-#endif
 
 int TclPrintRawCmd::DocumentSelect(Tcl_Obj *documentlist, Tcl_Obj *selectlist, Tcl_Obj *printerpattern, Tcl_Obj *machinepattern, Tcl_Obj *userpattern, Tcl_Obj *documentpattern) {
     int result = TCL_ERROR;
@@ -648,7 +635,7 @@ int TclPrintRawCmd::DocumentCommand(Tcl_Obj *answer, Tcl_Obj *command, Tcl_Obj *
         handle = documenthandle;
 
     int index = 0;
-    if (Tcl_GetIndexFromObj(tclInterp, command, commandsMap, "command", 0, &index) != TCL_OK)
+    if (Tcl_GetIndexFromObj(tclInterp, command, commandsMap, "request", 0, &index) != TCL_OK)
         return TCL_ERROR;
     if (index == 0) {
         Tcl_SetIntObj(answer, handle);
@@ -662,6 +649,16 @@ int TclPrintRawCmd::DocumentCommand(Tcl_Obj *answer, Tcl_Obj *command, Tcl_Obj *
     SetError(::GetLastError());
     return TCL_ERROR;
 }
+
+#ifndef JOB_STATUS_COMPLETE
+#define JOB_STATUS_COMPLETE 0x00001000
+#endif
+#ifndef JOB_STATUS_RETAINED
+#define JOB_STATUS_RETAINED 0x00002000
+#endif
+#ifndef JOB_STATUS_RENDERING_LOCALLY
+#define JOB_STATUS_RENDERING_LOCALLY 0x00004000
+#endif
 
 int TclPrintRawCmd::DocumentStatus(Tcl_Obj *statuslist, DWORD handle) {
     static DWORD status[] = {
@@ -711,7 +708,7 @@ int TclPrintRawCmd::DocumentStatus(Tcl_Obj *statuslist, DWORD handle) {
             if (info->pStatus)
                 Tcl_ListObjAppendElement(NULL, statuslist, NewObjFromExternal(info->pStatus));
             else
-                for (int i = 0; i < SIZEOFARRAY(status); i++) {
+                for (unsigned i = 0; i < SIZEOFARRAY(status); i++) {
                     if ((info->Status & status[i]))
                         Tcl_ListObjAppendElement(NULL, statuslist, Tcl_NewStringObj(statusMap[i], -1));
                 }

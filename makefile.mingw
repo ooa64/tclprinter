@@ -1,0 +1,29 @@
+#
+
+CC = gcc
+
+OBJECTS	= tclprinter.o tclprintgdi.o tclprintraw.o tclprint.o tclcmd.o
+TARGET = tclprinter10.dll 
+
+DEFS = -DUSE_TCL_STUBS -DDIALOGS=1
+CFLAGS = -pipe -O2 -fomit-frame-pointer -DNDEBUG -Wall
+INCLUDES = -I${TCLROOT}/include
+LDFLAGS = -mconsole -static-libgcc -static-libstdc++
+
+LIBS = ${TCLROOT}/lib/tclstub84.lib -lwinspool -lgdi32 -lcomdlg32 -static -lstdc++
+
+all: ${TARGET}
+
+clean:
+	-rm ${TARGET}
+	-rm ${OBJECTS}
+
+${TARGET}: ${OBJECTS}
+	${CC} ${LDFLAGS} -shared -o $@ ${OBJECTS} ${LIBS}
+
+.cpp.o:
+	${CC} ${DEFS} ${INCLUDES} ${CFLAGS} -c $< -o $@
+
+.SUFFIXES: .cpp .o
+
+

@@ -5,10 +5,6 @@
 #include "tclprintgdi.hpp"
 #include "tclprintraw.hpp"
 
-#ifndef VER_PLATFORM_WIN32_WINDOWS
-#define VER_PLATFORM_WIN32_WINDOWS 1
-#endif
-
 void UtfToExternal(CONST char *utf, Tcl_DString *external) {
 #ifdef UNICODE
     Tcl_WinUtfToTChar(utf, -1, external);
@@ -38,7 +34,103 @@ Tcl_Obj *NewObjFromExternal(CONST TCHAR *external) {
         return NULL;
 }
 
-int AppendSystemError (Tcl_Interp *interp, char *prefix, DWORD error) {
+#ifdef GetDefaultPrinter
+
+TCHAR *NewDefaultPrinterName1(TCHAR **name) {
+    DWORD size = 0;
+    _(::GetDefaultPrinter(NULL, &size));
+    if (size > 0) {
+        *name = (TCHAR *)ckalloc(size);
+        if (_(::GetDefaultPrinter(*name, &size))) {
+            return *name;
+        }
+        ckfree((char *)(*name));
+    }
+    return NULL;
+}
+
+#else
+
+#ifdef UNICODE
+  #define GETDEFAULTPRINTER "GetDefaultPrinterW"
+#else
+  #define GETDEFAULTPRINTER "GetDefaultPrinterA"
+#endif
+
+typedef int (CALLBACK *GDP)(LPTSTR ,LPDWORD);
+
+TCHAR *NewDefaultPrinterName1(TCHAR **name) {
+    HMODULE hlib = LoadLibrary(_T("winspool.drv"));
+    *name = NULL;
+    if (hlib) {
+        GDP fnGetDefaultPrinter = (GDP)_(::GetProcAddress(hlib, GETDEFAULTPRINTER));
+        if (fnGetDefaultPrinter) {
+            DWORD size = 0;
+            fnGetDefaultPrinter(NULL, &size);
+            if (size > 0) {
+                *name = (TCHAR *)ckalloc(size);
+                if (!fnGetDefaultPrinter(*name, &size)) {
+                    ckfree((char *)(*name));
+                    *name = NULL;
+                }
+            }
+        }
+        FreeLibrary(hlib);
+    }
+    return *name;
+}
+
+#endif
+
+TCHAR *NewDefaultPrinterName2(TCHAR **name) {
+    DWORD size = 0;
+    DWORD count = 0;
+    *name = NULL;
+    _(::EnumPrinters(PRINTER_ENUM_DEFAULT, NULL, 2, NULL, 0, &size, &count));
+    if (size > 0) {
+        PRINTER_INFO_2 *pi = (PRINTER_INFO_2 *)ckalloc(size);
+        if (_(::EnumPrinters(PRINTER_ENUM_DEFAULT, NULL, 2, (LPBYTE)pi, size, &size, &count))) {
+            size = _tcsclen(pi->pPrinterName);
+            (*name) = (TCHAR *)ckalloc(size+sizeof(TCHAR));
+            (*name)[size] = '\0';
+            memcpy(*name, pi->pPrinterName, size);
+        }
+        ckfree((char *)(pi));
+    }
+    return *name;
+}
+
+#define MAXBUFFERSIZE 256
+
+TCHAR *NewDefaultPrinterName3(TCHAR **name) {
+    TCHAR buffer[MAXBUFFERSIZE];
+    DWORD size = 0;
+    *name = NULL;
+
+    if (_(::GetProfileString("windows", "device", ",,,", buffer, MAXBUFFERSIZE) <= 0))
+        return NULL;
+
+    _tcstok(buffer, ","); // Printer name precedes first "," character.
+    size = _tcslen(buffer);
+    (*name) = (TCHAR *)ckalloc(size + sizeof(TCHAR));
+    (*name)[size] = '\0';
+    memcpy(*name, buffer, size);
+    return *name;
+}
+
+TCHAR *NewDefaultPrinterName(TCHAR **name) {
+    OSVERSIONINFO osv = {0};
+    osv.dwOSVersionInfoSize = sizeof(OSVERSIONINFO);
+    GetVersionEx(&osv);
+
+    if (osv.dwPlatformId == VER_PLATFORM_WIN32_WINDOWS) {
+        return NewDefaultPrinterName2(name);
+    } else if (osv.dwPlatformId == VER_PLATFORM_WIN32_NT && osv.dwMajorVersion >= 5)
+        return NewDefaultPrinterName1(name);
+    return NewDefaultPrinterName3(name);
+}
+
+int AppendSystemError (Tcl_Interp *interp, const char *prefix, DWORD error) {
     int length;
     char *msg;
     char id[TCL_INTEGER_SPACE], msgBuf[24 + TCL_INTEGER_SPACE];
@@ -64,7 +156,7 @@ int AppendSystemError (Tcl_Interp *interp, char *prefix, DWORD error) {
     }
     if (length == 0) {
         if (error == ERROR_CALL_NOT_IMPLEMENTED) {
-            msg = "function not supported under Win32s";
+            msg = (char *)"function not supported under Win32s";
         } else {
             sprintf(msgBuf, "unknown error: %ld", error);
             msg = msgBuf;
@@ -100,6 +192,7 @@ int AppendSystemError (Tcl_Interp *interp, char *prefix, DWORD error) {
 int TclPrinterCmd::Command (int objc, struct Tcl_Obj *CONST objv[])
 {
     static CONST char *commands[] = {
+        "default",
         "names",
         "print",
         "write",
@@ -107,6 +200,7 @@ int TclPrinterCmd::Command (int objc, struct Tcl_Obj *CONST objv[])
         0L
     };
     enum commands {
+        cmDefault,
         cmNames,
         cmPrint,
         cmWrite,
@@ -119,11 +213,24 @@ int TclPrinterCmd::Command (int objc, struct Tcl_Obj *CONST objv[])
         return TCL_ERROR;
     }
 
-    if (Tcl_GetIndexFromObj(tclInterp, objv[1], commands, "command", 0, &index) != TCL_OK) {
+    if (Tcl_GetIndexFromObj(tclInterp, objv[1], commands, "subcommand", 0, &index) != TCL_OK) {
         return TCL_ERROR;
     }
 
     switch ((enum commands)(index)) {
+
+    case cmDefault:
+        {
+            TCHAR *name = NULL;
+            if (NewDefaultPrinterName(&name)) {
+                Tcl_SetObjResult(tclInterp, NewObjFromExternal(name));
+                ckfree((char *)name);
+                return TCL_OK;
+            } else if (SetError(GetLastError()) == 0)
+                return TCL_OK;
+            else
+                return AppendSystemError(tclInterp, "can't query default: ", GetError());
+        }
 
     case cmNames:
         if (Names(Tcl_GetObjResult(tclInterp)) == TCL_OK)
@@ -153,7 +260,7 @@ int TclPrinterCmd::Command (int objc, struct Tcl_Obj *CONST objv[])
                         default:
                             {
                                 printerinterface = ifGdi; break;
-//                              Tcl_AppendResult(tclInterp, "unknown printer interface", NULL);
+//                              Tcl_AppendResult(tclInterp, "unknown printer protocol", NULL);
 //                              return TCL_ERROR;
                             }
                     }
@@ -226,14 +333,14 @@ int TclPrinterCmd::Command (int objc, struct Tcl_Obj *CONST objv[])
                 case cmPrint: 
                     {
                         int wrap = FALSE;
-                        LOGFONT font = {};
+                        LOGFONT font = {0};
                         RECT rect = {0, 0, _(::GetDeviceCaps(((TclPrintGdiCmd *)command)->GetDC(), HORZRES)), 
                                            _(::GetDeviceCaps(((TclPrintGdiCmd *)command)->GetDC(), VERTRES))};
 
                         if (result == TCL_OK)
                             result = ((TclPrintGdiCmd *)command)->ParsePrintParams(objc, objv, &obji, &rect, &font, &wrap);
 
-                        if (result == TCL_OK)
+                        if (result == TCL_OK) {
                             if (obji == objc-1) {
                                 result = ((TclPrintGdiCmd *)command)->Configure(&font);
                                 if (result == TCL_OK) {
@@ -252,11 +359,12 @@ int TclPrinterCmd::Command (int objc, struct Tcl_Obj *CONST objv[])
 #endif
                                 result = TCL_ERROR;
                             }
+                        }
                     }
                     break;
                 case cmWrite:
                     {
-                        if (result == TCL_OK)
+                        if (result == TCL_OK) {
                             if (obji == objc-1) {
                                 int written = ((TclPrintRawCmd *)command)->WriteDoc(document, output, objv[obji]);
                                 if (written >= 0)
@@ -271,8 +379,11 @@ int TclPrinterCmd::Command (int objc, struct Tcl_Obj *CONST objv[])
 #endif
                                 result = TCL_ERROR;
                             }
+                        }
                     }
                     break;
+                default:
+                    result = TCL_ERROR;
             }
             delete command;
             return result;

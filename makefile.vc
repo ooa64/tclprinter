@@ -1,5 +1,6 @@
 # makefile.vc for nmake
-# used for tclprinter.cpp
+#
+# set TCLROOT and TCLVER to compile with Tcl 8.5/8.6
 #
 # Possible uses are:
 #
@@ -22,24 +23,24 @@
 #      [advanced topic for deep core hackers]
 #
 #  add DIALOGS=1 to use PrintDlg for select/setup printer
+#  add THREADS=1 for full multithreading support
+#  add MSVCRT=1 to use dynamic MSVC runtime
 #
 
 LIBRARY = tclprinter
+DOTVERSION = 1.0
 VERSION = 10
 
 LIBRARY_OBJs = tclprinter.obj tclprintgdi.obj tclprintraw.obj tclprint.obj tclcmd.obj 
 SHELL_OBJs = printerAppInit.obj tclAppInit.obj
 
-# Edit this to point to where you installed Tcl.
-#
 !ifndef TCLROOT
 TCLROOT = c:\tcl84
 !endif
-TCLDIR =
-TCLVER = 84
-TCLSH  = $(TCLROOT)\bin\tclsh84sgx.exe
 
-INCLUDES = -I"$(TCLROOT)\include" -I.
+!ifndef TCLVER
+TCLVER = 84
+!endif
 
 !ifndef STATIC_BUILD
 STATIC_BUILD = 0
@@ -47,6 +48,14 @@ STATIC_BUILD = 0
 
 !ifndef USE_TCL_STUBS
 USE_TCL_STUBS = 1
+!endif
+
+!ifndef UNICODE
+UNICODE=0
+!endif
+
+!ifndef THREADS
+THREADS=0
 !endif
 
 !ifndef DIALOGS
@@ -57,19 +66,27 @@ DIALOGS = 0
 DEBUG = 0
 !endif
 
-# By convention, all extension should be compiled for thread support.
-#DEFINES = -DTCL_THREADS=1
+!ifndef MSVCRT
+MSVCRT = 0
+!endif
+
+DBGX=
 DEFINES = -D__WIN32__ -DWIN32 -D_WINDOWS -DWINVER=0x0400 -D_CRT_SECURE_NO_WARNINGS
-#DEFINES = -D__WIN32__ -DWIN32 -D_WINDOWS -DWINVER=0x0401
-!ifdef UNICODE
+
+!if $(UNICODE) != 0
 DEFINES = $(DEFINES) -DUNICODE -D_UNICODE
 !endif
 
-!if $(STATIC_BUILD) == 1
-DBGX = s
+!if $(THREADS) != 0
+DBGX = t
+DEFINES = $(DEFINES) -DTCL_THREADS=1 -DUSE_THREAD_ALLOC=1
 !endif
 
-!if $(USE_TCL_STUBS) == 1
+!if $(STATIC_BUILD) != 0
+DBGX = $(DBGX)s
+!endif
+
+!if $(USE_TCL_STUBS) != 0
 USESTUBS   = -DUSE_TCL_STUBS
 TCLSTUBLIB = tclstub$(TCLVER).lib
 !else
@@ -81,8 +98,8 @@ TCLSTUBLIB =
 DBG	   = d
 DBGX       = $(DBGX)g
 DBG_CFLAGS = -ZI -RTC1 -D_DEBUG -DDEBUG -DTCLCMD_DEBUG -DTCL_MEM_DEBUG
-#DBG_LFLAGS = -debug -debugtype:cv -nodefaultlib:msvcrt
-DBG_LFLAGS = -debug -debugtype:cv
+DBG_LFLAGS = -debug -debugtype:cv -nodefaultlib:msvcrt
+#DBG_LFLAGS = -debug -debugtype:cv
 !else
 DBG	   =
 DBGX       = $(DBGX)
@@ -90,43 +107,61 @@ DBG_CFLAGS = -O2 -Ot -Oi -fp:strict -Gs -GS -GL -DNDEBUG
 DBG_LFLAGS = -release -opt:ref -opt:icf,3 -ltcg
 !endif
 
-!if $(STATIC_BUILD) == 1
+!if $(STATIC_BUILD) != 0
+USESTUBS= 
 EXT	= lib
 DEFINES	= $(DEFINES) -DSTATIC_BUILD
-CFLAGS	= -Zl
-LFLAGS	= 
+CFLAGS	= $(CFLAGS) -Zl
+!if $(MSVCRT) != 0
 DBGX    = $(DBGX)x
-USESTUBS = 
+!endif
 !else
 EXT	= dll
 DEFINES	= $(DEFINES) $(USESTUBS)
-CFLAGS	= -LD
-LFLAGS	= 
+CFLAGS	= $(CFLAGS) -LD
 DBGX    = $(DBGX)
 !endif
-CFLAGS	= -W3 -WX -MD$(DBG) $(DBG_CFLAGS)
+
+!if $(MSVCRT) != 0
+CFLAGS	= $(CFLAGS) -MD$(DBG)
+!else
+CFLAGS	= $(CFLAGS) -MT$(DBG)
+LFLAGS  = $(LFLAGS) -nodefaultlib:msvcrt
+!endif
+
+CFLAGS	= $(CFLAGS) -W3 -WX $(DBG_CFLAGS)
 LFLAGS  = -machine:IX86 -subsystem:console -stack:2300000 $(LFLAGS) $(DBG_LFLAGS)
 
 TCLLIB = tcl$(TCLVER)$(DBGX).lib
 
+INCLUDES = $(INCLUDES) -I"$(TCLROOT)\include" -I.
+
 LIBS = $(LIBS) -libpath:"$(TCLROOT)\lib"
-!if $(USE_TCL_STUBS) == 1
+
+!if $(USE_TCL_STUBS) != 0
 LIBS = $(LIBS) $(TCLSTUBLIB)
 !else
 LIBS = $(LIBS) $(TCLLIB)
 !endif
 
-LIBS = $(LIBS) advapi32.lib user32.lib gdi32.lib winspool.lib
-
-!if $(DIALOGS) == 1
+!if $(DIALOGS) != 0
 LIBS = $(LIBS) comdlg32.lib 
 DEFINES = $(DEFINES) -DDIALOGS
 !endif
+
+!if $(TCLVER) >= 86
+LIBS = $(LIBS) Netapi32.lib
+!endif
+
+LIBS = $(LIBS) advapi32.lib user32.lib gdi32.lib winspool.lib
 
 TARGET = $(LIBRARY)$(VERSION)$(DBGX).$(EXT)
 TARGETLIB = $(LIBRARY)$(VERSION)$(DBGX).lib
 TARGETDLL = $(LIBRARY)$(VERSION)$(DBGX).dll
 SHELL = $(LIBRARY)sh$(VERSION)$(DBGX).exe
+
+#TCLSH = $(TCLROOT)\bin\tclsh$(TCLVER)$(DBGX).exe
+TCLSH == $(SHELL)
 
 all: $(TARGET)
 
@@ -148,6 +183,12 @@ clean:
 	@-del $(TARGETDLL)
 	@-del $(SHELL)
 
+install: all
+        -mkdir $(TCLROOT)\lib\$(LIBRARY)$(DOTVERSION)
+        echo y | xcopy /i $(TARGETLIB) $(TCLROOT)\lib
+        echo y | xcopy /i $(TARGETDLL) $(TCLROOT)\lib\$(LIBRARY)$(DOTVERSION)
+        echo y | xcopy /i pkgIndex.tcl $(TCLROOT)\lib\$(LIBRARY)$(DOTVERSION)
+
 $(TARGETLIB): $(LIBRARY_OBJs)
 	lib -nologo -ltcg -out:$@ $(LIBRARY_OBJs)
 
@@ -164,10 +205,11 @@ printerAppInit.obj: printerAppInit.c
 	cl -nologo -c -EHsc $(INCLUDES) $(DEFINES) $(USESTUBS) $(CFLAGS) -Fo$@ $?
 
 .rc.res:
-    rc -fo $@ -r -i $(TCLROOT)\include -D__WIN32__ \
-!if "$(DEBUG)" != "0"
-        -d DEBUG \
-!endif
+        rc -fo $@ -r -i $(TCLROOT)\include -D__WIN32__ \
+        -d DEBUG=$(DEBUG) \
+        -d TCL_THREADS=$(TCL_THREADS) \
+        -d STATIC_BUILD=$(STATIC_BUILD) \
+        -d MSVCRT=$(MSVCRT) \
         $<
 
 .cpp.obj ::

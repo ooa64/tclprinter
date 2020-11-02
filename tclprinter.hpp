@@ -9,8 +9,9 @@ class TclPrinterCmd : public TclCmd {
 
 public:
 
-    TclPrinterCmd(Tcl_Interp *interp, char *name):
-            TclCmd(interp, name), lasterrorcode(0) {};
+    TclPrinterCmd(Tcl_Interp *interp, CONST char *name): TclCmd(interp, name) {
+        lasterrorcode = 0;
+    };
 
     virtual ~TclPrinterCmd() {};
 
@@ -43,8 +44,9 @@ private:
 void UtfToExternal(CONST CHAR *utf, Tcl_DString *external);
 void ExternalToUtf(CONST TCHAR *external, Tcl_DString *utf);
 Tcl_Obj *NewObjFromExternal(CONST TCHAR *external);
+TCHAR *NewDefaultPrinterName(TCHAR **name);
 
-int AppendSystemError (Tcl_Interp *interp, char *prefix, DWORD error);
+int AppendSystemError (Tcl_Interp *interp, const char *prefix, DWORD error);
 
 #define SIZEOFARRAY(a) (sizeof(a)/sizeof(a[0]))
 

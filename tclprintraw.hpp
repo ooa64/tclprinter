@@ -9,8 +9,10 @@ class TclPrintRawCmd : public TclPrintCmd {
 
 public:
 
-    TclPrintRawCmd(Tcl_Interp *interp, char *name):
-          TclPrintCmd(interp, name), printerhandle(NULL), documenthandle(NULL) {};
+    TclPrintRawCmd(Tcl_Interp *interp, CONST char *name) : TclPrintCmd(interp, name) {
+        printerhandle = NULL;
+        documenthandle = 0;
+    };
 
     virtual ~TclPrintRawCmd() {
         Close();

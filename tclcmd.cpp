@@ -18,7 +18,7 @@ TclCmd::TclCmd() {
   Tcl_CreateExitHandler(TclCmd::Destroy, this);
 }
 
-TclCmd::TclCmd(Tcl_Interp * interp, char * name) {
+TclCmd::TclCmd(Tcl_Interp * interp, CONST char * name) {
   DEBUGLOG("TclCmd::Construct *" << this << " " << interp << " " << name);
   tclInterp = NULL;
   tclToken = NULL;
@@ -30,7 +30,7 @@ TclCmd::TclCmd(Tcl_Interp * interp, char * name) {
   Tcl_CreateExitHandler(TclCmd::Destroy, this);
 };
 
-TclCmd::TclCmd(Tcl_Interp * interp, char * name, TclCmd * parent) {
+TclCmd::TclCmd(Tcl_Interp * interp, CONST char * name, TclCmd * parent) {
   DEBUGLOG("TclCmd::Construct *" << this << " " << interp << " " << name << " " << parent);
   tclInterp = NULL;
   tclToken = NULL;
@@ -50,7 +50,7 @@ TclCmd::~TclCmd() {
   Rename(NULL, NULL);
 }
 
-void TclCmd::Rename(Tcl_Interp * interp, char * name) {
+void TclCmd::Rename(Tcl_Interp * interp, CONST char * name) {
   DEBUGLOG("TclCmd::Rename *" << this << " '" << \
        Tcl_GetCommandName(tclInterp, tclToken) << \
        "' to '" << (name ? name : "") << "'");
