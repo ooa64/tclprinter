@@ -1,0 +1,110 @@
+BUGS
+
+broken shell if built using 'USE_TCL_STUBS=1 STATIC_BUILD=0'
+static shell exports Tclprinter_Init
+
+NOTES
+
+Windows XP - несколько документов (заданий), можно выполнять последовательно (start/end) в рамках одного контекста (printer open)
+Windows 7  - для каждого документа (задания), надо открывать новый контекст (printer open)
+
+Wndows XP - StartDoc не срабатывает после AbortDoc (или после сбойного StartDoc)
+
+Windows XP - start/printempty/end не создает выходного документа
+Windows 7  - start/end - создает пустой выходной документ
+
+IDEAS
+
+printer -xps
+printer -raw
+
+printer names ?-verbose?
+printer documents ?-verbose?
+printer document pause|resume|abort -document documentname
+
+gdicommand startpage -portrait | -landscape -margins {}
+
+gdicommand info scalex|scaley|cwidth|cheight|page|font|protocol|document|status
+
+gdicommand startpage -callback | -cb
+gdicommand endpage -callback | -cb
+? printer print -gdi -startpagecb -endpagecb | pagecallback
+
+gdicommand rect|frame|... -brush xxx -pen xxx
+gdicommand line
+gdicommand image -bitmap|-jpeg|... (using ExtEscape?)
+
+? gdicommand configure -margins rectspec - startpagecb  
+? gdicommand configure -align mode|-autopos mode|-font name
+? gdicommand configure  -portrait | -landscape
+? gdicommand cget ...
+
+use AbortProc to control aborts
+
+doc: manual
+doc: table print using place
+
+---
+
+Q: is enddoc needed after abortdoc?
+A: NO
+
+Q: is abortdoc or enddoc needed after startdoc failed?
+A: YES, abortdoc
+
+===
+
+-name printername - the name of the specific output device being used, as shown by the Print Manager (for example, Epson FX-80)
+
+
+-calcrect - returns the height of the text
+-calcrect - returns the height of the formatted text but does not draw the text.
+            the return value is the offset from top to the bottom of the drawn text
+
+-rect - the rectangle (in logical coordinates) in which the text is to be formatted.
+
+-font -
+       	name - string that specifies the typeface name of the font.
+        height - the height, in logical units, of the font's character cell or character. 
+        width - the average width, in logical units, of characters in the requested font. 
+         
+---
+
+SetTextAlign (hdc, GetTextAlign(hdc) & (~TA_CENTER))
+SetTextAlign (hdc,TA_LEFT | <other flags>)
+
+"The text alignment mode for the device context must include the TA_LEFT,
+TA_TOP, and TA_NOUPDATECP flags".
+Jeff Partch [VC++ MVP]
+
+TA_BASELINE
+TA_BOTTOM
+TA_TOP
+TA_CENTER
+TA_LEFT
+TA_RIGHT
+TA_NOUPDATECP
+TA_RTLREADING
+TA_UPDATECP
+
+"baseline"
+"bottom"
+"top"
+"center"
+"left"
+"right"
+"noupdatecp"
+"rtlreading"
+"updatecp"
+
+---
+
+BLACK_BRUSH     Black brush.
+DKGRAY_BRUSH    Dark gray brush.
+DC_BRUSH        Solid color brush. The default color is white. The color can be changed by using the SetDCBrushColor function. For more information, see the Remarks section.
+GRAY_BRUSH      Gray brush.
+HOLLOW_BRUSH    Hollow brush (equivalent to NULL_BRUSH).
+LTGRAY_BRUSH    Light gray brush.
+NULL_BRUSH      Null brush (equivalent to HOLLOW_BRUSH).
+WHITE_BRUSH     White brush.
+BLACK_PEN       Black pen.

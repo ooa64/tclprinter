@@ -1,0 +1,172 @@
+# makefile.vc for nmake
+# used for tclprinter.cpp
+#
+# Possible uses are:
+#
+#  nmake -nologo -f makefile.vc [DEBUG=1]
+#      Makes a new style Stubs extension that doesn't need to resolve
+#      imports at loadtime and is NOT stuck to a tcl8X.dll by name.
+#
+#  nmake -nologo -f makefile.vc USE_TCL_STUBS=0 [DEBUG=1]
+#      Makes an old style extension needing tcl8X.dll by name.
+#
+#  nmake -nologo -f makefile.vc USE_TCL_STUBS=0 STATIC_BUILD=1 [DEBUG=1]
+#      Creates a static library.
+#
+#  nmake -nologo -f makefile.vc USE_TCL_STUBS=1 STATIC_BUILD=1 [DEBUG=1]
+#      Creates a static library that uses Stubs.  Technically this
+#      is legal, but why you might want this is the question.  Could
+#      allow for an addition layer of abstraction such that any
+#      other extension writing to the 'master' Stubs table will
+#      affect this extension too.
+#      [advanced topic for deep core hackers]
+#
+
+LIBRARY = tclprinter
+VERSION = 10
+
+LIBRARY_OBJs = tclprinter.obj tclprint.obj tclcmd.obj 
+SHELL_OBJs = printerAppInit.obj tclAppInit.obj
+
+# Edit this to point to where you installed Tcl.
+#
+!ifndef TCLROOT
+TCLROOT = c:\tcl84
+!endif
+TCLDIR =
+TCLVER = 84
+TCLSH  = $(TCLROOT)\bin\tclsh84sgx.exe
+
+INCLUDES = -I"$(TCLROOT)\include" -I.
+
+!ifndef STATIC_BUILD
+STATIC_BUILD = 0
+!endif
+
+!ifndef USE_TCL_STUBS
+USE_TCL_STUBS = 1
+!endif
+
+!ifndef DEBUG
+DEBUG = 0
+!endif
+
+# By convention, all extension should be compiled for thread support.
+#DEFINES = -DTCL_THREADS=1
+DEFINES = -D__WIN32__ -DWIN32 -D_WINDOWS -DWINVER=0x0400 -D_CRT_SECURE_NO_WARNINGS
+#DEFINES = -D__WIN32__ -DWIN32 -D_WINDOWS -DWINVER=0x0401
+!ifdef UNICODE
+DEFINES = $(DEFINES) -DUNICODE -D_UNICODE
+!endif
+
+!if $(STATIC_BUILD) == 1
+DBGX = s
+!endif
+
+!if $(USE_TCL_STUBS) == 1
+USESTUBS   = -DUSE_TCL_STUBS
+TCLSTUBLIB = tclstub$(TCLVER).lib
+!else
+USESTUBS   = 
+TCLSTUBLIB =
+!endif
+
+!if $(DEBUG) != 0
+DBG	   = d
+DBGX       = $(DBGX)g
+DBG_CFLAGS = -ZI -RTC1 -D_DEBUG -DDEBUG -DTCLCMD_DEBUG -DTCL_MEM_DEBUG
+#DBG_LFLAGS = -debug -debugtype:cv -nodefaultlib:msvcrt
+DBG_LFLAGS = -debug -debugtype:cv
+!else
+DBG	   =
+DBGX       = $(DBGX)
+DBG_CFLAGS = -O2 -Ot -Oi -fp:strict -Gs -GS -GL -DNDEBUG
+DBG_LFLAGS = -release -opt:ref -opt:icf,3 -ltcg
+!endif
+
+!if $(STATIC_BUILD) == 1
+EXT	= lib
+DEFINES	= $(DEFINES) -DSTATIC_BUILD
+CFLAGS	= -Zl
+LFLAGS	= 
+DBGX    = $(DBGX)x
+USESTUBS = 
+!else
+EXT	= dll
+DEFINES	= $(DEFINES) $(USESTUBS)
+CFLAGS	= -LD
+LFLAGS	= 
+DBGX    = $(DBGX)
+!endif
+CFLAGS	= -W3 -WX -MD$(DBG) $(DBG_CFLAGS)
+LFLAGS  = -machine:IX86 -subsystem:console -stack:2300000 $(LFLAGS) $(DBG_LFLAGS)
+
+TCLLIB = tcl$(TCLVER)$(DBGX).lib
+
+LIBS = $(LIBS) -libpath:"$(TCLROOT)\lib"
+!if $(USE_TCL_STUBS) == 1
+LIBS = $(LIBS) $(TCLSTUBLIB)
+!else
+LIBS = $(LIBS) $(TCLLIB)
+!endif
+
+LIBS = $(LIBS) advapi32.lib user32.lib comdlg32.lib gdi32.lib winspool.lib
+
+TARGET = $(LIBRARY)$(VERSION)$(DBGX).$(EXT)
+TARGETLIB = $(LIBRARY)$(VERSION)$(DBGX).lib
+TARGETDLL = $(LIBRARY)$(VERSION)$(DBGX).dll
+SHELL = $(LIBRARY)sh$(VERSION)$(DBGX).exe
+
+all: $(TARGET)
+
+shell: $(SHELL)
+
+test: all
+	 $(TCLSH) test.tcl
+
+clean:
+	@-del *.obj
+	@-del *.exp
+	@-del *.idb
+	@-del *.ilk
+	@-del *.pdb
+	@-del *.res
+	@-del *.manifest
+	@-del $(TARGET)
+	@-del $(TARGETLIB)
+	@-del $(TARGETDLL)
+	@-del $(SHELL)
+
+$(TARGETLIB): $(LIBRARY_OBJs)
+	lib -nologo -ltcg -out:$@ $(LIBRARY_OBJs)
+
+$(TARGETDLL): $(LIBRARY_OBJs)
+	link -nologo -dll -out:$@ $(LFLAGS) $(TCLSTUBLIB) $(LIBS) $(LIBRARY_OBJs)
+
+$(SHELL): $(LIBRARY_OBJs) $(SHELL_OBJs) tclsh.res
+	link -nologo $(LFLAGS) -out:$@ $(LIBS) $(TCLLIB) $(SHELL_OBJs) $(LIBRARY_OBJs) tclsh.res 
+
+tclAppInit.obj: tclAppInit.c 
+	cl -nologo -c -EHsc $(INCLUDES) $(DEFINES) $(CFLAGS) /DTCL_LOCAL_APPINIT=Tclprinter_AppInit -Fo$@ $?
+
+printerAppInit.obj: printerAppInit.c 
+	cl -nologo -c -EHsc $(INCLUDES) $(DEFINES) $(USESTUBS) $(CFLAGS) -Fo$@ $?
+
+.rc.res:
+    rc -fo $@ -r -i $(TCLROOT)\include -D__WIN32__ \
+!if "$(DEBUG)" != "0"
+        -d DEBUG \
+!endif
+        $<
+
+.cpp.obj ::
+	cl -nologo -c -EHsc $(INCLUDES) $(DEFINES) $(CFLAGS) @<<
+$<
+<<
+
+.c.obj ::
+	cl -nologo -c $(INCLUDES) $(DEFINES) $(CFLAGS) @<<
+$<
+<<
+
+.SUFFIXES: .cpp .c .rc .res
