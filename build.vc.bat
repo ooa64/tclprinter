@@ -4,6 +4,7 @@ if "%VCVARS%" == "" if exist "C:\Program Files\Microsoft Developer Studio\vc98\b
 if "%VCVARS%" == "" if exist "C:\Program Files\Microsoft Visual Studio\VC98\Bin\vcvars32.bat" set VCVARS=C:\Program Files\Microsoft Visual Studio\VC98\Bin\vcvars32.bat
 if "%VCVARS%" == "" if exist "C:\Program Files\Microsoft Visual Studio .NET 2003\Vc7\bin\vcvars32.bat" set VCVARS=C:\Program Files\Microsoft Visual Studio .NET 2003\Vc7\bin\vcvars32.bat
 if "%VCVARS%" == "" if exist "C:\Program Files\Microsoft Visual Studio 9.0\VC\bin\vcvars32.bat" set VCVARS=C:\Program Files\Microsoft Visual Studio 9.0\VC\bin\vcvars32.bat
+if "%VCVARS%" == "" if exist "C:\Program Files\Microsoft Visual Studio 14.0\VC\bin\vcvars32.bat" set VCVARS=C:\Program Files\Microsoft Visual Studio 14.0\VC\bin\vcvars32.bat
 if "%VCVARS%" == "" goto error
 
 call "%VCVARS%"

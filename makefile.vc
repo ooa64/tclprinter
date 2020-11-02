@@ -129,7 +129,8 @@ CFLAGS	= $(CFLAGS) -MT$(DBG)
 LFLAGS  = $(LFLAGS) -nodefaultlib:msvcrt
 !endif
 
-CFLAGS	= $(CFLAGS) -W3 -WX $(DBG_CFLAGS)
+#CFLAGS	= $(CFLAGS) -W3 -WX $(DBG_CFLAGS)
+CFLAGS	= $(CFLAGS) -W3 $(DBG_CFLAGS)
 LFLAGS  = -machine:IX86 -subsystem:console -stack:2300000 $(LFLAGS) $(DBG_LFLAGS)
 
 TCLLIB = tcl$(TCLVER)$(DBGX).lib
