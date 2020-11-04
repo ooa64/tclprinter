@@ -4,8 +4,12 @@ lappend auto_path .
 
 package require tclprinter
 
-set printerName "Microsoft XPS Document Writer"
-set outputName "ex2.xps"
+# Windows 10
+set printerName {Microsoft Print to PDF}
+set outputName [file join [pwd] ex1.pdf]
+# Windows 7
+#set printerName "Microsoft XPS Document Writer"
+#set outputName "ex2.xps"
 set text1 "The 'place' command draws formatted text in the specified rectangle and formats the text according to the specified method (expanding tabs, justifying characters, breaking lines, and so forth). If the function succeeds, the return value is the height of the text in device units. If vcenter or bottom align mode is specified, the return value is the offset from -rect top value to the bottom of the drawn text."
 set text2 "wordellipsis truncates any word that does not fit in the rectangle and adds ellipses."
 set font1 {Arial 12 bold}
@@ -14,7 +18,7 @@ set font2 {Lucida 10}
 proc viewFile fileName {
     if {[catch {
         package require registry
-        set app [registry get {HKEY_CLASSES_ROOT\.xps} {}]
+        set app [registry get HKEY_CLASSES_ROOT\\[file extension $::outputName] {}]
         set cmd [registry get HKEY_CLASSES_ROOT\\$app\\shell\\open\\command {}]
         regsub -all {%1} $cmd $fileName cmd
         set cmd "[auto_execok start] [regsub -all {\\} $cmd {\\\\}]"

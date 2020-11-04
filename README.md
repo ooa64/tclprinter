@@ -125,6 +125,9 @@ Changes...
                           Tcl 8.5/8.6 - all tests passed
                           Gcc 4.8.1 (mingw) - all tests passed
                           VC 6.0 / Windows 98 - failed on test 6-1-3/4 and some errorcodes
+    04.11.2020            Recompiled and tested on Windows 10, VC 14.0
+                          rawcommand tests failed on Windows 10 (passed on Windows 7)
+                          new example ex3.tcl (raw printing fails)
 
 Missing...
 

@@ -30,6 +30,7 @@ set defaultPort [lindex [split [registry get $k Device] ","] 2]
 #set k {HKEY_CURRENT_USER\Software\Microsoft\Windows NT\CurrentVersion\Devices}
 #set defaultName [lindex [registry keys $k] 0]
 set testingDevice "Microsoft XPS Document Writer"
+#set testingDevice "Microsoft Print to PDF"
 #set testingDevice $defaultDevice
 set testingOutput [file join [tcltest::temporaryDirectory] test.tmp]
 set testingFont Courier
