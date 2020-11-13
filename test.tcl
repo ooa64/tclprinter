@@ -1,12 +1,6 @@
 puts "Shell [info name] version [info patchlevel]"
 puts "[concat $::tcl_platform(os) $::tcl_platform(osVersion)]"
 
-if {[info command memory] ne ""} {
-    puts "Memory validation mode"
-    memory init on
-    memory validate on
-}
-
 package require tcltest
 namespace import tcltest::*
 
@@ -132,6 +126,12 @@ if {$nodialogs} {
 }
 
 catch {file delete $testingOutput}
+
+if {[testConstraint memory] && [info command memory] ne ""} {
+    puts "Memory validation mode"
+    memory init on
+    memory validate on
+}
 
 test test-1.1.0 {no params at all} {
     catch {printer} result

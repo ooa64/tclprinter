@@ -70,8 +70,28 @@ DEBUG = 0
 MSVCRT = 0
 !endif
 
+!if "$(MACHINE)" == ""
+!if "$(PLATFORM)" == "x64"
+MACHINE     = IA64
+!else
+MACHINE     = IX86
+!endif
+!endif
+
+!if "$(MACHINE)" == "IA64"
+PLATFORM  = x64
+clXX      = "$(VCINSTALLDIR)\bin\x86_amd64\cl.exe"
+linkXX    = "$(VCINSTALLDIR)\bin\x86_amd64\link.exe"
+libXX     = "$(VCINSTALLDIR)\bin\x86_amd64\lib.exe"
+!else
+PLATFORM  = x86
+clXX      = "$(VCINSTALLDIR)\bin\cl.exe"
+linkXX    = "$(VCINSTALLDIR)\bin\link.exe"
+libXX     = "$(VCINSTALLDIR)\bin\lib.exe"
+!endif
+
 DBGX=
-DEFINES = -D__WIN32__ -DWIN32 -D_WINDOWS -DWINVER=0x0400 -D_CRT_SECURE_NO_WARNINGS
+DEFINES = -DWINVER=0x0400 -D_CRT_SECURE_NO_WARNINGS
 
 !if $(UNICODE) != 0
 DEFINES = $(DEFINES) -DUNICODE -D_UNICODE
@@ -131,7 +151,7 @@ LFLAGS  = $(LFLAGS) -nodefaultlib:msvcrt
 
 #CFLAGS	= $(CFLAGS) -W3 -WX $(DBG_CFLAGS)
 CFLAGS	= $(CFLAGS) -W3 $(DBG_CFLAGS)
-LFLAGS  = -machine:IX86 -subsystem:console -stack:2300000 $(LFLAGS) $(DBG_LFLAGS)
+LFLAGS  = -subsystem:console -stack:2300000 $(LFLAGS) $(DBG_LFLAGS)
 
 TCLLIB = tcl$(TCLVER)$(DBGX).lib
 
@@ -191,19 +211,19 @@ install: all
         echo y | xcopy /i pkgIndex.tcl $(TCLROOT)\lib\$(LIBRARY)$(DOTVERSION)
 
 $(TARGETLIB): $(LIBRARY_OBJs)
-	lib -nologo -ltcg -out:$@ $(LIBRARY_OBJs)
+	$(libXX) -nologo -ltcg -out:$@ $(LIBRARY_OBJs)
 
 $(TARGETDLL): $(LIBRARY_OBJs)
-	link -nologo -dll -out:$@ $(LFLAGS) $(TCLSTUBLIB) $(LIBS) $(LIBRARY_OBJs)
+	$(linkXX) -nologo -dll -out:$@ $(LFLAGS) $(TCLSTUBLIB) $(LIBS) $(LIBRARY_OBJs)
 
 $(SHELL): $(LIBRARY_OBJs) $(SHELL_OBJs) tclsh.res
-	link -nologo $(LFLAGS) -out:$@ $(LIBS) $(TCLLIB) $(SHELL_OBJs) $(LIBRARY_OBJs) tclsh.res 
+	$(linkXX) -nologo $(LFLAGS) -out:$@ $(LIBS) $(TCLLIB) $(SHELL_OBJs) $(LIBRARY_OBJs) tclsh.res 
 
 tclAppInit.obj: tclAppInit.c 
-	cl -nologo -c -EHsc $(INCLUDES) $(DEFINES) $(CFLAGS) /DTCL_LOCAL_APPINIT=Tclprinter_AppInit -Fo$@ $?
+	$(clXX) -nologo -c -EHsc $(INCLUDES) $(DEFINES) $(CFLAGS) /DTCL_LOCAL_APPINIT=Tclprinter_AppInit -Fo$@ $?
 
 printerAppInit.obj: printerAppInit.c 
-	cl -nologo -c -EHsc $(INCLUDES) $(DEFINES) $(USESTUBS) $(CFLAGS) -Fo$@ $?
+	$(clXX) -nologo -c -EHsc $(INCLUDES) $(DEFINES) $(USESTUBS) $(CFLAGS) -Fo$@ $?
 
 .rc.res:
         rc -fo $@ -r -i $(TCLROOT)\include -D__WIN32__ \
@@ -214,12 +234,12 @@ printerAppInit.obj: printerAppInit.c
         $<
 
 .cpp.obj ::
-	cl -nologo -c -EHsc $(INCLUDES) $(DEFINES) $(CFLAGS) @<<
+	$(clXX) -nologo -c -EHsc $(INCLUDES) $(DEFINES) $(CFLAGS) @<<
 $<
 <<
 
 .c.obj ::
-	cl -nologo -c $(INCLUDES) $(DEFINES) $(CFLAGS) @<<
+	$(clXX) -nologo -c $(INCLUDES) $(DEFINES) $(CFLAGS) @<<
 $<
 <<
 
