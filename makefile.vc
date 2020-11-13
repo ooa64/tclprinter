@@ -189,7 +189,11 @@ all: $(TARGET)
 shell: $(SHELL)
 
 test: all
-	 $(TCLSH) test.tcl
+	@setlocal
+	@set PATH=$(TCLROOT)\bin;%%PATH%%
+        @set TCL_LIBRARY=$(TCLROOT)\lib\tcl8.6
+	@$(TCLSH) test.tcl
+	@endlocal
 
 clean:
 	@-del *.obj
