@@ -73,10 +73,8 @@ proc striperror {errorcode errormessage} {
 proc reopen {command {force false}} {
    set reopen $force
    if {$::tcl_platform(os) eq "Windows NT"} {
-        switch $::tcl_platform(osVersion) {
-            6.1 {
-                set reopen true
-            }
+        if {$::tcl_platform(osVersion) > 6.1} {
+            set reopen true
         }
    }
    if {$reopen} {
