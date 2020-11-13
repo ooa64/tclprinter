@@ -128,6 +128,7 @@ Changes...
     04.11.2020            Recompiled and tested on Windows 10, VC 14.0
                           rawcommand tests failed on Windows 10 (passed on Windows 7)
                           new example ex3.tcl (raw printing fails)
+    12.11.2020            All tests passed for 32bit and 64bit builds                          
 
 Missing...
 
