@@ -35,11 +35,11 @@ LIBRARY_OBJs = tclprinter.obj tclprintgdi.obj tclprintraw.obj tclprint.obj tclcm
 SHELL_OBJs = printerAppInit.obj tclAppInit.obj
 
 !ifndef TCLROOT
-TCLROOT = c:\tcl84
+TCLROOT = c:\activetcl
 !endif
 
 !ifndef TCLVER
-TCLVER = 84
+TCLVER = 86
 !endif
 
 !ifndef STATIC_BUILD
@@ -51,7 +51,7 @@ USE_TCL_STUBS = 1
 !endif
 
 !ifndef UNICODE
-UNICODE=0
+UNICODE=1
 !endif
 
 !ifndef THREADS
@@ -76,18 +76,6 @@ MACHINE     = IA64
 !else
 MACHINE     = IX86
 !endif
-!endif
-
-!if "$(MACHINE)" == "IA64"
-PLATFORM  = x64
-clXX      = "$(VCINSTALLDIR)\bin\x86_amd64\cl.exe"
-linkXX    = "$(VCINSTALLDIR)\bin\x86_amd64\link.exe"
-libXX     = "$(VCINSTALLDIR)\bin\x86_amd64\lib.exe"
-!else
-PLATFORM  = x86
-clXX      = "$(VCINSTALLDIR)\bin\cl.exe"
-linkXX    = "$(VCINSTALLDIR)\bin\link.exe"
-libXX     = "$(VCINSTALLDIR)\bin\lib.exe"
 !endif
 
 DBGX=
@@ -191,10 +179,16 @@ shell: $(SHELL)
 test: all
 	@setlocal
 	@set PATH=$(TCLROOT)\bin;%%PATH%%
-        @set TCL_LIBRARY=$(TCLROOT)\lib\tcl8.6
+	@set TCL_LIBRARY=$(TCLROOT)\lib\tcl8.6
 	@$(TCLSH) test.tcl
 	@endlocal
 
+testshell: $(SHELL)
+	@setlocal
+	@set PATH=$(TCLROOT)\bin;%%PATH%%
+        @set TCL_LIBRARY=$(TCLROOT)\lib\tcl8.6
+	@$(SHELL)
+	@endlocal
 clean:
 	@-del *.obj
 	@-del *.exp
@@ -215,19 +209,19 @@ install: all
         echo y | xcopy /i pkgIndex.tcl $(TCLROOT)\lib\$(LIBRARY)$(DOTVERSION)
 
 $(TARGETLIB): $(LIBRARY_OBJs)
-	$(libXX) -nologo -ltcg -out:$@ $(LIBRARY_OBJs)
+	lib -nologo -ltcg -out:$@ $(LIBRARY_OBJs)
 
 $(TARGETDLL): $(LIBRARY_OBJs)
-	$(linkXX) -nologo -dll -out:$@ $(LFLAGS) $(TCLSTUBLIB) $(LIBS) $(LIBRARY_OBJs)
+	link -nologo -dll -out:$@ $(LFLAGS) $(TCLSTUBLIB) $(LIBS) $(LIBRARY_OBJs)
 
 $(SHELL): $(LIBRARY_OBJs) $(SHELL_OBJs) tclsh.res
-	$(linkXX) -nologo $(LFLAGS) -out:$@ $(LIBS) $(TCLLIB) $(SHELL_OBJs) $(LIBRARY_OBJs) tclsh.res 
+	link -nologo $(LFLAGS) -out:$@ $(LIBS) $(TCLLIB) $(SHELL_OBJs) $(LIBRARY_OBJs) tclsh.res 
 
 tclAppInit.obj: tclAppInit.c 
-	$(clXX) -nologo -c -EHsc $(INCLUDES) $(DEFINES) $(CFLAGS) /DTCL_LOCAL_APPINIT=Tclprinter_AppInit -Fo$@ $?
+	cl -nologo -c -EHsc $(INCLUDES) $(DEFINES) $(CFLAGS) /DTCL_LOCAL_APPINIT=Tclprinter_AppInit -Fo$@ $?
 
 printerAppInit.obj: printerAppInit.c 
-	$(clXX) -nologo -c -EHsc $(INCLUDES) $(DEFINES) $(USESTUBS) $(CFLAGS) -Fo$@ $?
+	cl -nologo -c -EHsc $(INCLUDES) $(DEFINES) $(USESTUBS) $(CFLAGS) -Fo$@ $?
 
 .rc.res:
         rc -fo $@ -r -i $(TCLROOT)\include -D__WIN32__ \
@@ -238,12 +232,12 @@ printerAppInit.obj: printerAppInit.c
         $<
 
 .cpp.obj ::
-	$(clXX) -nologo -c -EHsc $(INCLUDES) $(DEFINES) $(CFLAGS) @<<
+	cl -nologo -c -EHsc $(INCLUDES) $(DEFINES) $(CFLAGS) @<<
 $<
 <<
 
 .c.obj ::
-	$(clXX) -nologo -c $(INCLUDES) $(DEFINES) $(CFLAGS) @<<
+	cl -nologo -c $(INCLUDES) $(DEFINES) $(CFLAGS) @<<
 $<
 <<
 

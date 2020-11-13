@@ -27,6 +27,7 @@ set testingDevice "Microsoft XPS Document Writer"
 #set testingDevice "Microsoft Print to PDF"
 #set testingDevice $defaultDevice
 set testingOutput [file join [tcltest::temporaryDirectory] test.tmp]
+set testingNul    [file join [tcltest::temporaryDirectory] _nul.tmp]
 set testingFont Courier
 
 # fconfigure stdout -encoding cp866
@@ -80,7 +81,8 @@ proc reopen {command {force false}} {
    return $command
 }
 
-set nodialogs 0
+catch {printer open -x} result
+set dialogs [string match "*dialog*" $result]
 set noxpscheck [catch {package require zipvfs; package require tdom}]
 
 proc viewXps {file} {
@@ -119,10 +121,12 @@ if {$tcl_version >= 8.5} {
     proc codeLookupIndex args {return NONE}
 }
 
-if {$nodialogs} {
-    set printerUsage [list $codeWrongArgs {wrong # args: should be "printer open ?-gdi|-raw? ?-default|-name printername? ?command?"}]
-} else {
+if {$dialogs} {
+    puts "Dialogs on"
     set printerUsage [list $codeWrongArgs {wrong # args: should be "printer open ?-gdi|-raw? ?-default|-printdialog|-setupdialog|-name printername? ?command?"}]
+} else {
+    puts "Dialogs off"
+    set printerUsage [list $codeWrongArgs {wrong # args: should be "printer open ?-gdi|-raw? ?-default|-name printername? ?command?"}]
 }
 
 catch {file delete $testingOutput}
@@ -528,7 +532,7 @@ unset s
 foreach {h w} {{}} break
 
 test test-1.9.1.0 {get default font metrics} {gdi} {
-    prn start -output nul
+    prn start -output $testingNul
     prn startpage
     foreach {x1 y1 x2 y2} [prn place -calcrect x] break
     set h [expr ($y2-$y1)]
@@ -546,7 +550,7 @@ unset h w
 foreach {h w} {{}} break
 
 test test-1.9.2.0 {get courier font metrics} {gdi} {
-    prn start -output nul
+    prn start -output $testingNul
     prn startpage
     foreach {x1 y1 x2 y2} [prn place -font courier -calcrect x] break
     set h [expr ($y2-$y1)]
@@ -564,7 +568,7 @@ unset h w
 foreach {h w} {{}} break
 
 test test-1.9.3.0 {get arial 20x5 font metrics} {gdi} {
-    prn start -output nul
+    prn start -output $testingNul
     prn startpage
     foreach {x1 y1 x2 y2} [prn place -font {arial 20 5 bold italic} -calcrect x] break
     set h [expr ($y2-$y1)]
@@ -867,7 +871,7 @@ test test-6.0.2 {clear queue} {job} {
 } {}
 
 test test-6.0.3 {create document, check id} {job} {
-    prn start -document test-6.0.1 -output nul
+    prn start -document test-6.0.1 -output $testingNul
     lsearch [prn document select id -document test-6.0.1] [prn document id]
 } {0}
 
@@ -897,8 +901,8 @@ test test-6.1.2 {clear queue} {job} {
 test test-6.1.3 {create queue} {job} {
     printer open -name $testingDevice prn1
     printer open -name $testingDevice prn2
-    prn1 start -document test-6.1.3-1 -output nul
-    prn2 start -document test-6.1.3-2 -output nul
+    prn1 start -document test-6.1.3-1 -output $testingNul
+    prn2 start -document test-6.1.3-2 -output $testingNul
     lsort [pmon document select document -document test-6.1.3-?]
 } {test-6.1.3-1 test-6.1.3-2}
 
@@ -970,6 +974,7 @@ test test-6.1.6.9 {invalid id for monitor} {job} {
 } {{WINDOWS 87} {error processing document:}}
 
 catch {file delete $testingOutput}
+catch {file delete $testingNul}
 
 cleanupTests 
 

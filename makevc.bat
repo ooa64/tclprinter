@@ -2,13 +2,6 @@
 
 rem call C:\Program Files\Microsoft Visual Studio 14.0\VC\bin\vcvars32.bat
 
-echo SDK:
-echo %WindowsSdkDir%
-if not exist "%WindowsSdkDir%\lib\kernel32.lib" goto sdkerror
-
-rem fix tailing slash
-if "%WindowsSdkDir:~-1%" == "\" set WindowsSdkDir=%WindowsSdkDir:~0,-1%
-
 echo Compiler:
 cl > nul
 if errorlevel 1 goto clerror

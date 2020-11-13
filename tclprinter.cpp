@@ -40,7 +40,7 @@ TCHAR *NewDefaultPrinterName1(TCHAR **name) {
     DWORD size = 0;
     _(::GetDefaultPrinter(NULL, &size));
     if (size > 0) {
-        *name = (TCHAR *)ckalloc(size);
+        *name = (TCHAR *)ckalloc(size * sizeof(TCHAR));
         if (_(::GetDefaultPrinter(*name, &size))) {
             return *name;
         }
@@ -68,7 +68,7 @@ TCHAR *NewDefaultPrinterName1(TCHAR **name) {
             DWORD size = 0;
             fnGetDefaultPrinter(NULL, &size);
             if (size > 0) {
-                *name = (TCHAR *)ckalloc(size);
+                *name = (TCHAR *)ckalloc(size * sizeof(TCHAR));
                 if (!fnGetDefaultPrinter(*name, &size)) {
                     ckfree((char *)(*name));
                     *name = NULL;
@@ -90,10 +90,9 @@ TCHAR *NewDefaultPrinterName2(TCHAR **name) {
     if (size > 0) {
         PRINTER_INFO_2 *pi = (PRINTER_INFO_2 *)ckalloc(size);
         if (_(::EnumPrinters(PRINTER_ENUM_DEFAULT, NULL, 2, (LPBYTE)pi, size, &size, &count))) {
-            size = _tcsclen(pi->pPrinterName);
-            (*name) = (TCHAR *)ckalloc(size+sizeof(TCHAR));
-            (*name)[size] = '\0';
-            memcpy(*name, pi->pPrinterName, size);
+            size_t strsize = _tcsclen(pi->pPrinterName);
+            (*name) = (TCHAR *)ckalloc((strsize + 1) * sizeof(TCHAR));
+            _tcscpy(*name, pi->pPrinterName);
         }
         ckfree((char *)(pi));
     }
@@ -107,14 +106,13 @@ TCHAR *NewDefaultPrinterName3(TCHAR **name) {
     DWORD size = 0;
     *name = NULL;
 
-    if (_(::GetProfileString("windows", "device", ",,,", buffer, MAXBUFFERSIZE) <= 0))
-        return NULL;
+    if (_(::GetProfileString(_T("windows"), _T("device"), _T(",,,"), buffer, MAXBUFFERSIZE) <= 0))
+        return *name;
 
-    _tcstok(buffer, ","); // Printer name precedes first "," character.
-    size = _tcslen(buffer);
-    (*name) = (TCHAR *)ckalloc(size + sizeof(TCHAR));
-    (*name)[size] = '\0';
-    memcpy(*name, buffer, size);
+    _tcstok(buffer, _T(",")); // Printer name precedes first "," character.
+    size_t strsize = _tcslen(buffer);
+    (*name) = (TCHAR *)ckalloc((strsize + 1) * sizeof(TCHAR));
+    _tcscpy(*name, buffer);
     return *name;
 }
 
