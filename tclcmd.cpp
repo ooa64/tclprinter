@@ -7,37 +7,37 @@
 #   define DEBUGLOG(_x_)
 #endif
 
-TclCmd::TclCmd() {
+TclCmd::TclCmd():
+    tclInterp {NULL},
+    tclToken {NULL},
+    pParent {NULL},
+    pNext {NULL},
+    pPrev {NULL},
+    pChildren {NULL} {
   DEBUGLOG("TclCmd::Construct *" << this);
-  tclInterp = NULL;
-  tclToken = NULL;
-  pParent = NULL;
-  pNext = NULL;
-  pPrev = NULL;
-  pChildren = NULL;
   Tcl_CreateExitHandler(TclCmd::Destroy, this);
 }
 
-TclCmd::TclCmd(Tcl_Interp * interp, CONST char * name) {
+TclCmd::TclCmd(Tcl_Interp * interp, CONST char * name):
+    tclInterp {NULL},
+    tclToken {NULL},
+    pParent {NULL},
+    pNext {NULL},
+    pPrev {NULL},
+    pChildren {NULL} {
   DEBUGLOG("TclCmd::Construct *" << this << " " << interp << " " << name);
-  tclInterp = NULL;
-  tclToken = NULL;
-  pParent = NULL;
-  pNext = NULL;
-  pPrev = NULL;
-  pChildren = NULL;
   Rename(interp, name);
   Tcl_CreateExitHandler(TclCmd::Destroy, this);
 };
 
-TclCmd::TclCmd(Tcl_Interp * interp, CONST char * name, TclCmd * parent) {
+TclCmd::TclCmd(Tcl_Interp * interp, CONST char * name, TclCmd * parent):
+    tclInterp {NULL},
+    tclToken {NULL},
+    pParent {NULL},
+    pNext {NULL},
+    pPrev {NULL},
+    pChildren {NULL} {
   DEBUGLOG("TclCmd::Construct *" << this << " " << interp << " " << name << " " << parent);
-  tclInterp = NULL;
-  tclToken = NULL;
-  pParent = NULL;
-  pNext = NULL;
-  pPrev = NULL;
-  pChildren = NULL;
   Rename(interp, name);
   SetParent(parent);
   Tcl_CreateExitHandler(TclCmd::Destroy, this);
@@ -100,7 +100,7 @@ void TclCmd::RemoveChild(TclCmd * child) {
 
 int TclCmd::Dispatch (ClientData clientData, Tcl_Interp * interp,
              int objc, Tcl_Obj * const objv[]) {
-  TclCmd *o = (TclCmd *) clientData;
+  TclCmd *o = static_cast<TclCmd *>(clientData);
 
 #ifdef TCLCMD_DEBUG
   if (interp != o->tclInterp) {
@@ -115,7 +115,7 @@ int TclCmd::Dispatch (ClientData clientData, Tcl_Interp * interp,
 }
 
 void TclCmd::Destroy(ClientData clientData) {
-  TclCmd *o = (TclCmd *) clientData;
+  TclCmd *o = static_cast<TclCmd *>(clientData);
 
   DEBUGLOG("TclCmd::Destroy *" << o);
   if (o->IsNamed()) {
@@ -126,7 +126,7 @@ void TclCmd::Destroy(ClientData clientData) {
 }
 
 void TclCmd::Delete(ClientData clientData, Tcl_Interp *interp) {
-  TclCmd *o = (TclCmd *) clientData;
+  TclCmd *o = static_cast<TclCmd *>(clientData);
 
   DEBUGLOG("TclCmd::Delete *" << o);
   if (o->IsNamed()) {

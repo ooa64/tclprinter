@@ -103,15 +103,14 @@ TCHAR *NewDefaultPrinterName2(TCHAR **name) {
 
 TCHAR *NewDefaultPrinterName3(TCHAR **name) {
     TCHAR buffer[MAXBUFFERSIZE];
-    DWORD size = 0;
     *name = NULL;
 
     if (_(::GetProfileString(_T("windows"), _T("device"), _T(",,,"), buffer, MAXBUFFERSIZE) <= 0))
         return *name;
 
     _tcstok(buffer, _T(",")); // Printer name precedes first "," character.
-    size_t strsize = _tcslen(buffer);
-    (*name) = (TCHAR *)ckalloc((strsize + 1) * sizeof(TCHAR));
+    size_t size = _tcslen(buffer);
+    (*name) = (TCHAR *)ckalloc((size + 1) * sizeof(TCHAR));
     _tcscpy(*name, buffer);
     return *name;
 }

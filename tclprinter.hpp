@@ -36,7 +36,7 @@ protected:
 
 private:
 
-    virtual int Command(int objc, struct Tcl_Obj *CONST objv[]);
+    int Command(int objc, struct Tcl_Obj *CONST objv[]) override;
 
     Tcl_Obj *NewPrintNameObj();
 };

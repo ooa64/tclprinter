@@ -20,22 +20,22 @@ public:
         Close();
     };
 
-    virtual BOOL Opened();
+    BOOL Opened() override;
 
-    virtual void Close();
+    void Close() override;
 
 #ifdef DIALOGS
-    virtual int Select(BOOL setupdialog);
+    int Select(BOOL setupdialog) override;
 #endif
-    virtual int Open(Tcl_Obj *printer);
-    virtual int OpenDefault();
-    virtual int Configure(LOGFONT *fc);
-    virtual int StartDoc(Tcl_Obj *document, Tcl_Obj *output);
-    virtual int AbortDoc();
-    virtual int EndDoc();
-    virtual int StartPage();
-    virtual int EndPage();
+    int Open(Tcl_Obj *printer) override;
+    int OpenDefault() override;
+    int StartDoc(Tcl_Obj *document, Tcl_Obj *output) override;
+    int AbortDoc() override;
+    int EndDoc() override;
+    int StartPage() override;
+    int EndPage() override;
 
+    int Configure(LOGFONT *fc);
     int Place(RECT *rect, BOOL calc, UINT align, Tcl_Obj *text);
     int Print(RECT *rect, BOOL wrap, Tcl_Obj *text);
     int PrintDoc(Tcl_Obj *document, Tcl_Obj *output, RECT *rect, BOOL wrap, Tcl_Obj *text);
@@ -62,7 +62,7 @@ protected:
 
 private:
 
-    virtual int Command(int objc, struct Tcl_Obj *CONST objv[]);
+    int Command(int objc, struct Tcl_Obj *CONST objv[]) override;
 };
 
 #endif

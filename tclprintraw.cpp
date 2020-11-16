@@ -362,7 +362,7 @@ int TclPrintRawCmd::StartDoc(Tcl_Obj *document, Tcl_Obj *output) {
 
     DOC_INFO_1 docinfo;
     ZeroMemory(&docinfo, sizeof(DOC_INFO_1));
-    docinfo.pDatatype = (LPSTR)_T("RAW");
+    docinfo.pDatatype = _T("RAW");
     if (document) {
         UtfToExternal(Tcl_GetString(document), &documentds);
         docinfo.pDocName = (TCHAR *)Tcl_DStringValue(&documentds);
